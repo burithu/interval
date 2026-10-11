@@ -1,109 +1,115 @@
 package io.github.burithu.interval.ringing
 
+import android.app.Notification
 import android.app.NotificationChannel
 import android.app.NotificationManager
 import android.app.PendingIntent
 import android.content.Context
 import android.content.Intent
-import android.media.AudioAttributes
-import android.provider.Settings
 import androidx.core.app.NotificationCompat
 import androidx.core.net.toUri
 import io.github.burithu.interval.MainActivity
 import io.github.burithu.interval.R
 import io.github.burithu.interval.data.Reminder
+import io.github.burithu.interval.data.RingStyle
 import io.github.burithu.interval.data.TimingMode
+import io.github.burithu.interval.ui.alarm.AlarmActivity
 import io.github.burithu.interval.ui.formatClock
 import io.github.burithu.interval.ui.formatInterval
 import java.time.Instant
 import java.time.ZoneId
 
 /**
- * Posts ring notifications. Each reminder has its own channel because Android ties the
- * sound to the channel (D13). A sound or vibration change gets a new channel id.
+ * Builds and posts ring notifications. Channels are silent: [RingService] plays sound and
+ * vibration itself, so HyperOS's per-app notification sound switch cannot mute a ring.
  */
 class Notifier(private val context: Context) {
     private val nm = context.getSystemService(NotificationManager::class.java)
 
-    private fun channelPrefix(id: Long) = "reminder_${id}_"
-    private fun channelId(r: Reminder): String =
-        channelPrefix(r.id) + (r.soundUri to r.vibrate).hashCode().toUInt().toString(16)
-
-    fun ensureChannel(r: Reminder) {
-        val id = channelId(r)
-        nm.notificationChannels
-            .filter { it.id.startsWith(channelPrefix(r.id)) && it.id != id }
-            .forEach { nm.deleteNotificationChannel(it.id) }
-        val channel = NotificationChannel(id, r.label, NotificationManager.IMPORTANCE_HIGH).apply {
-            description = "Rings for \"${r.label}\""
-            setSound(
-                r.soundUri?.toUri() ?: Settings.System.DEFAULT_NOTIFICATION_URI,
-                AudioAttributes.Builder()
-                    .setUsage(AudioAttributes.USAGE_NOTIFICATION)
-                    .setContentType(AudioAttributes.CONTENT_TYPE_SONIFICATION)
-                    .build(),
-            )
-            enableVibration(r.vibrate)
-            if (r.vibrate) vibrationPattern = longArrayOf(0, 400, 200, 400)
+    fun ensureChannels() {
+        // Per-reminder channels from before 0.1.0-M4 are no longer used.
+        nm.notificationChannels.filter { it.id.startsWith("reminder_") }.forEach { nm.deleteNotificationChannel(it.id) }
+        listOf(
+            NotificationChannel(CH_RING, "Reminders", NotificationManager.IMPORTANCE_HIGH).apply {
+                description = "Notification-style rings. Interval plays the sound itself."
+            },
+            NotificationChannel(CH_ALARM, "Alarms", NotificationManager.IMPORTANCE_HIGH).apply {
+                description = "Alarm-style rings, shown full screen."
+            },
+            NotificationChannel(CH_MISSED, "Missed reminders", NotificationManager.IMPORTANCE_LOW).apply {
+                description = "Rings that got no response."
+            },
+        ).forEach {
+            it.setSound(null, null)
+            it.enableVibration(false)
+            nm.createNotificationChannel(it)
         }
-        nm.createNotificationChannel(channel)
     }
 
-    fun deleteChannels(reminderId: Long) {
-        nm.notificationChannels
-            .filter { it.id.startsWith(channelPrefix(reminderId)) }
-            .forEach { nm.deleteNotificationChannel(it.id) }
-    }
-
-    fun showRing(r: Reminder) {
-        ensureChannel(r)
+    fun buildRing(r: Reminder): Notification {
+        val alarm = r.ringStyle == RingStyle.ALARM
         val text = when (r.timingMode) {
             TimingMode.RESTART -> "Every ${formatInterval(r.intervalMinutes)} · dismiss to restart the timer"
             TimingMode.FIXED -> "Every ${formatInterval(r.intervalMinutes)}"
         }
-        val n = base(r)
+        val b = NotificationCompat.Builder(context, if (alarm) CH_ALARM else CH_RING)
+            .setSmallIcon(R.drawable.ic_notification)
+            .setContentTitle(r.label)
             .setContentText(text)
+            .setCategory(if (alarm) NotificationCompat.CATEGORY_ALARM else NotificationCompat.CATEGORY_REMINDER)
+            .setPriority(NotificationCompat.PRIORITY_HIGH)
+            .setVisibility(NotificationCompat.VISIBILITY_PUBLIC)
+            .setShowWhen(true)
+            .setAutoCancel(true)
+            .setSilent(true)
+            .setContentIntent(if (alarm) alarmScreen(r.id) else openApp())
             .setDeleteIntent(action(r.id, ActionReceiver.ACTION_SWIPE, 3))
             .addAction(0, "Dismiss", action(r.id, ActionReceiver.ACTION_DISMISS, 1))
             .addAction(0, "Snooze ${formatInterval(r.snoozeMinutes)}", action(r.id, ActionReceiver.ACTION_SNOOZE, 2))
+        if (alarm) b.setFullScreenIntent(alarmScreen(r.id), true).setOngoing(true)
+        return b.build()
+    }
+
+    /** Missed notifications stay until the next ring replaces them (D25). */
+    fun showMissed(r: Reminder, next: Instant?, timeoutText: String, zone: ZoneId) {
+        val nextText = next?.let { "Next at ${formatClock(it, zone)}." } ?: "No more rings scheduled."
+        val n = NotificationCompat.Builder(context, CH_MISSED)
+            .setSmallIcon(R.drawable.ic_notification)
+            .setContentTitle("Missed · ${r.label}")
+            .setContentText("No response in $timeoutText. $nextText")
+            .setCategory(NotificationCompat.CATEGORY_REMINDER)
+            .setVisibility(NotificationCompat.VISIBILITY_PUBLIC)
+            .setShowWhen(true)
+            .setAutoCancel(true)
+            .setSilent(true)
+            .setContentIntent(openApp())
             .build()
         post(r.id, n)
     }
 
-    /** Missed notifications stay until the next ring replaces them (D25), without sounding again. */
-    fun showMissed(r: Reminder, next: Instant?, timeoutMinutes: Int, zone: ZoneId) {
-        val nextText = next?.let { "Next at ${formatClock(it, zone)}." } ?: "No more rings scheduled."
-        val n = base(r)
-            .setContentTitle("Missed · ${r.label}")
-            .setContentText("No response in $timeoutMinutes min. $nextText")
-            .setOnlyAlertOnce(true)
-            .setSilent(true)
-            .build()
-        post(r.id, n)
+    fun post(id: Long, n: Notification) {
+        try {
+            nm.notify(id.toInt(), n)
+        } catch (_: SecurityException) {
+            // Notification permission revoked. The ring is still logged; Home shows the warning.
+        }
     }
 
     fun cancel(reminderId: Long) = nm.cancel(reminderId.toInt())
 
-    private fun base(r: Reminder) = NotificationCompat.Builder(context, channelId(r))
-        .setSmallIcon(R.drawable.ic_notification)
-        .setContentTitle(r.label)
-        .setCategory(NotificationCompat.CATEGORY_REMINDER)
-        .setPriority(NotificationCompat.PRIORITY_HIGH)
-        .setShowWhen(true)
-        .setAutoCancel(true)
-        .setContentIntent(
-            PendingIntent.getActivity(
-                context, 0, Intent(context, MainActivity::class.java), PendingIntent.FLAG_IMMUTABLE,
-            ),
-        )
+    private fun openApp() = PendingIntent.getActivity(
+        context, 0, Intent(context, MainActivity::class.java), PendingIntent.FLAG_IMMUTABLE,
+    )
 
-    private fun post(id: Long, n: android.app.Notification) {
-        try {
-            nm.notify(id.toInt(), n)
-        } catch (_: SecurityException) {
-            // Notification permission revoked. The ring is still logged; the Home banner (M3) reports it.
-        }
-    }
+    private fun alarmScreen(reminderId: Long) = PendingIntent.getActivity(
+        context,
+        reminderId.toInt(),
+        Intent(context, AlarmActivity::class.java)
+            .setData("interval://reminder/$reminderId".toUri())
+            .putExtra(AlarmActivity.EXTRA_ID, reminderId)
+            .addFlags(Intent.FLAG_ACTIVITY_NEW_TASK or Intent.FLAG_ACTIVITY_NO_USER_ACTION),
+        PendingIntent.FLAG_IMMUTABLE or PendingIntent.FLAG_UPDATE_CURRENT,
+    )
 
     private fun action(reminderId: Long, action: String, req: Int): PendingIntent {
         val intent = Intent(context, ActionReceiver::class.java)
@@ -113,5 +119,11 @@ class Notifier(private val context: Context) {
         return PendingIntent.getBroadcast(
             context, req, intent, PendingIntent.FLAG_IMMUTABLE or PendingIntent.FLAG_UPDATE_CURRENT,
         )
+    }
+
+    companion object {
+        const val CH_RING = "ring"
+        const val CH_ALARM = "alarm"
+        const val CH_MISSED = "missed"
     }
 }

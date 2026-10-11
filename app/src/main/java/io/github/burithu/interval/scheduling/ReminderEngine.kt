@@ -2,6 +2,7 @@ package io.github.burithu.interval.scheduling
 
 import io.github.burithu.interval.data.Phase
 import io.github.burithu.interval.data.Reminder
+import io.github.burithu.interval.data.RingStyle
 import io.github.burithu.interval.data.SettingsStore
 import io.github.burithu.interval.data.db.EventLogEntity
 import io.github.burithu.interval.data.db.EventType
@@ -11,6 +12,7 @@ import io.github.burithu.interval.data.db.toDomain
 import io.github.burithu.interval.data.db.toEntity
 import io.github.burithu.interval.ringing.AlarmScheduler
 import io.github.burithu.interval.ringing.Notifier
+import io.github.burithu.interval.ringing.Ringer
 import io.github.burithu.interval.ui.formatClock
 import kotlinx.coroutines.sync.Mutex
 import kotlinx.coroutines.sync.withLock
@@ -29,6 +31,7 @@ class ReminderEngine(
     private val settings: SettingsStore,
     private val alarms: AlarmScheduler,
     private val notifier: Notifier,
+    private val ringer: Ringer,
     private val clock: () -> Instant = Instant::now,
     private val zone: () -> ZoneId = ZoneId::systemDefault,
 ) {
@@ -42,7 +45,6 @@ class ReminderEngine(
         val id = if (reminder.id == 0L) reminders.insert(reminder.toEntity())
         else reminder.id.also { reminders.update(reminder.toEntity()) }
         val saved = reminder.copy(id = id)
-        notifier.ensureChannel(saved)
         clearRinging(id)
         scheduleFresh(saved, ScheduleEvent.Enabled(clock()))
         record(id, EventType.SAVED)
@@ -60,7 +62,6 @@ class ReminderEngine(
     suspend fun delete(id: Long) = mutex.withLock {
         alarms.cancelRing(id)
         clearRinging(id)
-        notifier.deleteChannels(id)
         reminders.delete(id) // state row goes with it (cascade)
         record(id, EventType.DELETED)
     }
@@ -82,13 +83,14 @@ class ReminderEngine(
             record(id, EventType.MISSED, detail = "no response to ring at ${state.ringingSince?.let { formatClock(it, zone()) }}")
         }
         val s = settings.current()
-        val timeout = Duration.ofMinutes(s.missedTimeoutMinutes.toLong())
+        val timeout = missedTimeout(r)
         // Schedule the next ring now, as if this one will be missed. Dismiss or snooze replaces it.
         // This keeps every ring on setAlarmClock; HyperOS delayed plain exact alarms by up to 23 min.
         val ifIgnored = Scheduler.nextRing(r, ScheduleEvent.Missed(now + timeout), zone(), s.pausedUntil)
         states.upsert(ReminderStateEntity(id, Phase.RINGING, ifIgnored, now))
-        notifier.showRing(r)
+        ringer.start(r, now)
         schedule(id, ifIgnored)
+        // Alarms relabel themselves when their ring length ends; this is the backup.
         alarms.scheduleMissedLabel(id, now + timeout)
         val late = due?.let { Duration.between(it, now).seconds }
         record(id, EventType.RANG, scheduledFor = due, detail = late?.let { "late ${it}s" })
@@ -102,10 +104,17 @@ class ReminderEngine(
         val r = reminders.get(id)?.toDomain() ?: return@withLock
         val state = states.get(id) ?: return@withLock
         val since = state.ringingSince ?: return@withLock
-        val s = settings.current()
-        if (state.phase != Phase.RINGING || clock() < since + Duration.ofMinutes(s.missedTimeoutMinutes.toLong())) return@withLock
-        notifier.showMissed(r, state.nextRingAt, s.missedTimeoutMinutes, zone())
+        val timeout = missedTimeout(r)
+        if (state.phase != Phase.RINGING || clock() + LABEL_TOLERANCE < since + timeout) return@withLock
+        ringer.stop(id)
+        val timeoutText = if (r.ringStyle == RingStyle.ALARM) "${r.ringSeconds} s" else "${timeout.toMinutes()} min"
+        notifier.showMissed(r, state.nextRingAt, timeoutText, zone())
     }
+
+    /** Notifications count as missed after the settings timeout; alarms after their ring length (D21). */
+    private suspend fun missedTimeout(r: Reminder): Duration =
+        if (r.ringStyle == RingStyle.ALARM) Duration.ofSeconds(r.ringSeconds.toLong())
+        else Duration.ofMinutes(settings.current().missedTimeoutMinutes.toLong())
 
     /** Dismiss, swipe or snooze. Ignored unless the reminder is ringing. */
     suspend fun onAction(id: Long, action: RingAction) = mutex.withLock {
@@ -113,9 +122,11 @@ class ReminderEngine(
         val state = states.get(id)
         if (r == null || state?.phase != Phase.RINGING) {
             // Button on an old notification.
+            ringer.stop(id)
             if (action != RingAction.SWIPE) notifier.cancel(id)
             return@withLock
         }
+        ringer.stop(id)
         val now = clock()
         val event = when (action) {
             RingAction.DISMISS, RingAction.SWIPE -> ScheduleEvent.Dismissed(now)
@@ -191,6 +202,7 @@ class ReminderEngine(
 
     private fun clearRinging(id: Long) {
         alarms.cancelMissedLabel(id)
+        ringer.stop(id)
         notifier.cancel(id)
     }
 
@@ -199,5 +211,6 @@ class ReminderEngine(
 
     private companion object {
         val EARLY_TOLERANCE: Duration = Duration.ofSeconds(60)
+        val LABEL_TOLERANCE: Duration = Duration.ofSeconds(2)
     }
 }

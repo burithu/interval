@@ -69,6 +69,7 @@ class EditorViewModel(private val c: AppContainer, handle: SavedStateHandle) : V
     var timingMode by mutableStateOf(TimingMode.RESTART)
     var ringStyle by mutableStateOf(RingStyle.NOTIFICATION)
     var snoozeMinutes by mutableIntStateOf(10)
+    var ringSeconds by mutableIntStateOf(60)
     var vibrate by mutableStateOf(true)
     private var original: Reminder? = null
 
@@ -81,7 +82,7 @@ class EditorViewModel(private val c: AppContainer, handle: SavedStateHandle) : V
                     original = r
                     label = r.label; intervalMinutes = r.intervalMinutes; windowStart = r.windowStart
                     windowEnd = r.windowEnd; days = r.days; timingMode = r.timingMode; ringStyle = r.ringStyle
-                    snoozeMinutes = r.snoozeMinutes; vibrate = r.vibrate
+                    snoozeMinutes = r.snoozeMinutes; ringSeconds = r.ringSeconds; vibrate = r.vibrate
                 }
             }
         }
@@ -100,7 +101,7 @@ class EditorViewModel(private val c: AppContainer, handle: SavedStateHandle) : V
         val r = base.copy(
             label = label.trim().take(40), intervalMinutes = intervalMinutes, windowStart = windowStart,
             windowEnd = windowEnd, days = days, timingMode = timingMode, ringStyle = ringStyle,
-            snoozeMinutes = snoozeMinutes, vibrate = vibrate, enabled = true,
+            snoozeMinutes = snoozeMinutes, ringSeconds = ringSeconds, vibrate = vibrate, enabled = true,
         )
         viewModelScope.launch {
             c.engine.save(r)
@@ -221,8 +222,19 @@ fun EditorScreen(vm: EditorViewModel, onClose: () -> Unit) {
                     selected = vm.ringStyle,
                     onSelect = { vm.ringStyle = it },
                 )
+                Text(
+                    if (vm.ringStyle == RingStyle.ALARM) "Full-screen alarm. Rings even when the phone is on silent."
+                    else "A chime and vibration. Follows the phone's silent and vibrate modes.",
+                    style = t.meta, color = c.muted,
+                )
                 if (vm.ringStyle == RingStyle.ALARM) {
-                    Text("The full-screen alarm arrives in M4. Until then Alarm rings as a notification.", style = t.meta, color = c.muted)
+                    FieldLabel("Ring for")
+                    PillRow(
+                        options = listOf(30, 60, 120, 300).map { it to if (it < 60) "$it s" else "${it / 60} min" },
+                        isSelected = { it == vm.ringSeconds },
+                        onSelect = { vm.ringSeconds = it },
+                    )
+                    Text("Then it stops and counts as missed.", style = t.meta, color = c.muted)
                 }
             }
             Section("Snooze") {

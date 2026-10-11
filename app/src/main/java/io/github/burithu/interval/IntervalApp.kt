@@ -6,6 +6,7 @@ import io.github.burithu.interval.data.SettingsStore
 import io.github.burithu.interval.data.db.IntervalDatabase
 import io.github.burithu.interval.ringing.AlarmScheduler
 import io.github.burithu.interval.ringing.Notifier
+import io.github.burithu.interval.ringing.Ringer
 import io.github.burithu.interval.scheduling.ReminderEngine
 import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.Dispatchers
@@ -18,7 +19,8 @@ class AppContainer(context: Context) {
     val settings = SettingsStore(context)
     val alarms = AlarmScheduler(context)
     val notifier = Notifier(context)
-    val engine = ReminderEngine(db, settings, alarms, notifier)
+    val ringer = Ringer(context, notifier)
+    val engine = ReminderEngine(db, settings, alarms, notifier, ringer)
 }
 
 class IntervalApp : Application() {
@@ -28,5 +30,6 @@ class IntervalApp : Application() {
     override fun onCreate() {
         super.onCreate()
         container = AppContainer(this)
+        container.notifier.ensureChannels()
     }
 }

@@ -2,6 +2,7 @@ package io.github.burithu.interval.ui.home
 
 import android.Manifest
 import android.app.AlarmManager
+import android.app.NotificationManager
 import android.content.Context
 import android.content.Intent
 import android.content.pm.PackageManager
@@ -166,13 +167,15 @@ private fun PermissionPanel() {
     val context = LocalContext.current
     var notifOk by remember { mutableStateOf(notificationsAllowed(context)) }
     var exactOk by remember { mutableStateOf(exactAlarmsAllowed(context)) }
+    var fullScreenOk by remember { mutableStateOf(fullScreenAllowed(context)) }
     LifecycleResumeEffect(Unit) {
         notifOk = notificationsAllowed(context)
         exactOk = exactAlarmsAllowed(context)
+        fullScreenOk = fullScreenAllowed(context)
         onPauseOrDispose { }
     }
     val askNotif = rememberLauncherForActivityResult(ActivityResultContracts.RequestPermission()) { notifOk = it }
-    if (notifOk && exactOk) return
+    if (notifOk && exactOk && fullScreenOk) return
     Column(
         Modifier.fillMaxWidth().background(c.fg).padding(Spacing.m),
         verticalArrangement = Arrangement.spacedBy(Spacing.s),
@@ -198,9 +201,25 @@ private fun PermissionPanel() {
                 }.padding(vertical = Spacing.s),
             )
         }
+        if (!fullScreenOk && Build.VERSION.SDK_INT >= Build.VERSION_CODES.UPSIDE_DOWN_CAKE) {
+            Text(
+                "ALLOW FULL-SCREEN ALARMS",
+                style = t.fieldLabel,
+                color = c.bg,
+                modifier = Modifier.clickable {
+                    context.startActivity(
+                        Intent(Settings.ACTION_MANAGE_APP_USE_FULL_SCREEN_INTENT, "package:${context.packageName}".toUri()),
+                    )
+                }.padding(vertical = Spacing.s),
+            )
+        }
     }
     Spacer(Modifier.height(Spacing.m))
 }
+
+private fun fullScreenAllowed(context: Context): Boolean =
+    Build.VERSION.SDK_INT < Build.VERSION_CODES.UPSIDE_DOWN_CAKE ||
+        context.getSystemService(NotificationManager::class.java).canUseFullScreenIntent()
 
 private fun notificationsAllowed(context: Context): Boolean =
     Build.VERSION.SDK_INT < Build.VERSION_CODES.TIRAMISU ||
