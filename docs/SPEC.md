@@ -194,6 +194,18 @@ nextRing() → AlarmManager.setAlarmClock()   (one alarm per reminder)
 3. **Play policy** — exact alarm and full-screen intent declarations at release time.
 4. **Name** — "Interval" to be checked before release.
 
+### HyperOS findings (Xiaomi 13 China ROM, HyperOS 3, Android 16 — tested 2026-10-11)
+| Problem | Cause | Handling |
+|---|---|---|
+| Next ring delayed up to 23 min after an unanswered ring | `setExactAndAllowWhileIdle` throttled | Every ring uses `setAlarmClock`; the "if ignored" ring is booked at ring time |
+| Notifications silent, no popup | Per-app HyperOS notification switches off by default (`bbbc=0`) | App plays sound/vibration itself (RingService); onboarding links the notification page |
+| Full-screen intent never launched | HyperOS SystemUI ignores FSI from third-party apps | RingService starts AlarmActivity itself |
+| Background start blocked (`BAL_BLOCK`) | Android 15+ needs `SYSTEM_ALERT_WINDOW` *and* a visible overlay | Declare SAW; show 1×1 overlay during launch |
+| Alarm screen hidden behind lock screen | MIUI op 10020 "Show on Lock screen" denied; `showWhenLocked` must be in manifest | Onboarding opens Xiaomi permission editor; manifest attributes |
+| adb `appops set` for MIUI ops reverted | Security Center keeps its own copy | Must be set in Settings |
+
+Onboarding (M3) on Xiaomi must cover: Autostart, Battery "No restrictions", notification popups/lock screen, Show on Lock screen, Background pop-ups, Display over other apps, full-screen alarms, exact alarms.
+
 ## 8. Decision log
 
 | # | Decision |
