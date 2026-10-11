@@ -1,15 +1,5 @@
 package io.github.burithu.interval.ui.home
 
-import android.Manifest
-import android.app.AlarmManager
-import android.app.NotificationManager
-import android.content.Context
-import android.content.Intent
-import android.content.pm.PackageManager
-import android.os.Build
-import android.provider.Settings
-import androidx.activity.compose.rememberLauncherForActivityResult
-import androidx.activity.result.contract.ActivityResultContracts
 import androidx.compose.foundation.background
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.Arrangement
@@ -30,6 +20,7 @@ import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.getValue
+import androidx.compose.runtime.mutableIntStateOf
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
 import androidx.compose.runtime.setValue
@@ -37,19 +28,20 @@ import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.semantics.Role
+import androidx.compose.ui.text.style.TextDecoration
 import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
-import androidx.core.content.ContextCompat
-import androidx.core.net.toUri
 import androidx.lifecycle.ViewModel
 import androidx.lifecycle.compose.LifecycleResumeEffect
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import androidx.lifecycle.viewModelScope
 import io.github.burithu.interval.AppContainer
+import io.github.burithu.interval.data.AppSettings
 import io.github.burithu.interval.data.Phase
 import io.github.burithu.interval.data.Reminder
 import io.github.burithu.interval.data.ReminderState
 import io.github.burithu.interval.data.db.toDomain
+import io.github.burithu.interval.onboarding.SetupChecks
 import io.github.burithu.interval.ui.BottomBar
 import io.github.burithu.interval.ui.formatNext
 import io.github.burithu.interval.ui.reminderMeta
@@ -84,13 +76,17 @@ class HomeViewModel(private val c: AppContainer) : ViewModel() {
     fun ensureScheduled() {
         viewModelScope.launch { c.engine.ensureScheduled() }
     }
+
+    val settings: StateFlow<AppSettings> =
+        c.settings.settings.stateIn(viewModelScope, SharingStarted.WhileSubscribed(5_000), AppSettings())
 }
 
 @Composable
-fun HomeScreen(vm: HomeViewModel, onOpen: (Long) -> Unit, onAdd: () -> Unit, onLog: () -> Unit) {
+fun HomeScreen(vm: HomeViewModel, onOpen: (Long) -> Unit, onAdd: () -> Unit, onLog: () -> Unit, onSetup: () -> Unit) {
     val c = IntervalTheme.colors
     val t = IntervalTheme.type
     val rows by vm.rows.collectAsStateWithLifecycle()
+    val settings by vm.settings.collectAsStateWithLifecycle()
     val zone = remember { ZoneId.systemDefault() }
     var now by remember { mutableStateOf(Instant.now()) }
     LaunchedEffect(Unit) {
@@ -111,13 +107,19 @@ fun HomeScreen(vm: HomeViewModel, onOpen: (Long) -> Unit, onAdd: () -> Unit, onL
             ) {
                 Text("REMINDERS", style = t.screenTitle, color = c.fg, modifier = Modifier.weight(1f))
                 Text(
+                    "SETUP",
+                    style = t.fieldLabel,
+                    color = c.muted,
+                    modifier = Modifier.clickable(role = Role.Button, onClick = onSetup).padding(Spacing.m),
+                )
+                Text(
                     "LOG",
                     style = t.fieldLabel,
                     color = c.muted,
                     modifier = Modifier.clickable(role = Role.Button, onClick = onLog).padding(Spacing.m),
                 )
             }
-            PermissionPanel()
+            ReliabilityBanner(settings.confirmedSteps, onSetup)
             if (rows.isEmpty()) {
                 Spacer(Modifier.height(Spacing.xl))
                 Text("No reminders yet", style = t.reminderName, color = c.fg)
@@ -159,86 +161,28 @@ private fun ReminderRow(row: HomeRow, now: Instant, zone: ZoneId, onClick: () ->
     }
 }
 
-/** Temporary M2 setup panel. Replaced by onboarding screens and the warning banner in M3. */
+/** Screen 07: shown while a required setup step is detected as off. */
 @Composable
-private fun PermissionPanel() {
+private fun ReliabilityBanner(confirmed: Set<String>, onFix: () -> Unit) {
     val c = IntervalTheme.colors
     val t = IntervalTheme.type
     val context = LocalContext.current
-    var notifOk by remember { mutableStateOf(notificationsAllowed(context)) }
-    var exactOk by remember { mutableStateOf(exactAlarmsAllowed(context)) }
-    var fullScreenOk by remember { mutableStateOf(fullScreenAllowed(context)) }
-    var overlayOk by remember { mutableStateOf(Settings.canDrawOverlays(context)) }
+    var refresh by remember { mutableIntStateOf(0) }
     LifecycleResumeEffect(Unit) {
-        notifOk = notificationsAllowed(context)
-        exactOk = exactAlarmsAllowed(context)
-        fullScreenOk = fullScreenAllowed(context)
-        overlayOk = Settings.canDrawOverlays(context)
+        refresh++
         onPauseOrDispose { }
     }
-    val askNotif = rememberLauncherForActivityResult(ActivityResultContracts.RequestPermission()) { notifOk = it }
-    if (notifOk && exactOk && fullScreenOk && overlayOk) return
-    Column(
-        Modifier.fillMaxWidth().background(c.fg).padding(Spacing.m),
-        verticalArrangement = Arrangement.spacedBy(Spacing.s),
+    val missing = remember(refresh, confirmed) { SetupChecks.missingRequired(context, confirmed) }
+    if (missing.isEmpty()) return
+    Row(
+        Modifier.fillMaxWidth().background(c.fg).clickable(role = Role.Button, onClick = onFix).padding(Spacing.m),
+        verticalAlignment = Alignment.CenterVertically,
     ) {
-        Text("Reminders may be late or silent.", style = t.reminderName, color = c.bg)
-        if (!notifOk && Build.VERSION.SDK_INT >= Build.VERSION_CODES.TIRAMISU) {
-            Text(
-                "ALLOW NOTIFICATIONS",
-                style = t.fieldLabel,
-                color = c.bg,
-                modifier = Modifier.clickable { askNotif.launch(Manifest.permission.POST_NOTIFICATIONS) }.padding(vertical = Spacing.s),
-            )
+        Column(Modifier.weight(1f)) {
+            Text("Reminders may be late.", style = t.reminderName, color = c.bg)
+            Text(missing.joinToString(" · ") { it.title }, style = t.meta, color = c.bg)
         }
-        if (!exactOk && Build.VERSION.SDK_INT >= Build.VERSION_CODES.S) {
-            Text(
-                "ALLOW EXACT ALARMS",
-                style = t.fieldLabel,
-                color = c.bg,
-                modifier = Modifier.clickable {
-                    context.startActivity(
-                        Intent(Settings.ACTION_REQUEST_SCHEDULE_EXACT_ALARM, "package:${context.packageName}".toUri()),
-                    )
-                }.padding(vertical = Spacing.s),
-            )
-        }
-        if (!fullScreenOk && Build.VERSION.SDK_INT >= Build.VERSION_CODES.UPSIDE_DOWN_CAKE) {
-            Text(
-                "ALLOW FULL-SCREEN ALARMS",
-                style = t.fieldLabel,
-                color = c.bg,
-                modifier = Modifier.clickable {
-                    context.startActivity(
-                        Intent(Settings.ACTION_MANAGE_APP_USE_FULL_SCREEN_INTENT, "package:${context.packageName}".toUri()),
-                    )
-                }.padding(vertical = Spacing.s),
-            )
-        }
-        if (!overlayOk) {
-            Text(
-                "ALLOW DISPLAY OVER OTHER APPS (ALARM SCREEN)",
-                style = t.fieldLabel,
-                color = c.bg,
-                modifier = Modifier.clickable {
-                    context.startActivity(
-                        Intent(Settings.ACTION_MANAGE_OVERLAY_PERMISSION, "package:${context.packageName}".toUri()),
-                    )
-                }.padding(vertical = Spacing.s),
-            )
-        }
+        Text("FIX", style = t.sheetTitle, color = c.bg, textDecoration = TextDecoration.Underline)
     }
     Spacer(Modifier.height(Spacing.m))
 }
-
-private fun fullScreenAllowed(context: Context): Boolean =
-    Build.VERSION.SDK_INT < Build.VERSION_CODES.UPSIDE_DOWN_CAKE ||
-        context.getSystemService(NotificationManager::class.java).canUseFullScreenIntent()
-
-private fun notificationsAllowed(context: Context): Boolean =
-    Build.VERSION.SDK_INT < Build.VERSION_CODES.TIRAMISU ||
-        ContextCompat.checkSelfPermission(context, Manifest.permission.POST_NOTIFICATIONS) == PackageManager.PERMISSION_GRANTED
-
-private fun exactAlarmsAllowed(context: Context): Boolean =
-    Build.VERSION.SDK_INT < Build.VERSION_CODES.S ||
-        context.getSystemService(AlarmManager::class.java).canScheduleExactAlarms()
