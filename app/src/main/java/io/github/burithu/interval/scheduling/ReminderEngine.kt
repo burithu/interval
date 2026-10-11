@@ -75,7 +75,7 @@ class ReminderEngine(
         val due = state?.nextRingAt
         if (due != null && now < due - EARLY_TOLERANCE) {
             // Stale alarm (state changed after it was set). Put the real one back.
-            alarms.scheduleRing(id, due)
+            alarms.scheduleRing(id, due, r.isAlarm)
             return@withLock
         }
         if (state?.phase == Phase.RINGING) {
@@ -89,7 +89,7 @@ class ReminderEngine(
         val ifIgnored = Scheduler.nextRing(r, ScheduleEvent.Missed(now + timeout), zone(), s.pausedUntil)
         states.upsert(ReminderStateEntity(id, Phase.RINGING, ifIgnored, now))
         ringer.start(r, now)
-        schedule(id, ifIgnored)
+        schedule(r, ifIgnored)
         // Alarms relabel themselves when their ring length ends; this is the backup.
         alarms.scheduleMissedLabel(id, now + timeout)
         val late = due?.let { Duration.between(it, now).seconds }
@@ -135,7 +135,7 @@ class ReminderEngine(
         val next = Scheduler.nextRing(r, event, zone(), settings.current().pausedUntil)
         val phase = if (action == RingAction.SNOOZE) Phase.SNOOZED else Phase.WAITING
         states.upsert(ReminderStateEntity(id, phase, next, null))
-        schedule(id, next)
+        schedule(r, next)
         alarms.cancelMissedLabel(id)
         if (action != RingAction.SWIPE) notifier.cancel(id)
         val type = when (action) {
@@ -156,12 +156,12 @@ class ReminderEngine(
         for (r in reminders.getAll().map { it.toDomain() }) {
             val state = states.get(r.id)
             if (!afterBoot && state?.phase == Phase.RINGING) {
-                schedule(r.id, state.nextRingAt)
+                schedule(r, state.nextRingAt)
                 continue
             }
             val next = Scheduler.nextRing(r, ScheduleEvent.Rescheduled(now, state?.nextRingAt), zone(), paused)
             states.upsert(ReminderStateEntity(r.id, Phase.WAITING, next, null))
-            schedule(r.id, next)
+            schedule(r, next)
         }
         record(null, EventType.RESCHEDULED_ALL, detail = reason)
     }
@@ -176,11 +176,11 @@ class ReminderEngine(
             val state = states.get(r.id)
             val stored = state?.nextRingAt
             if (stored != null) {
-                alarms.scheduleRing(r.id, stored)
+                alarms.scheduleRing(r.id, stored, r.isAlarm)
             } else if (r.enabled) {
                 val next = Scheduler.nextRing(r, ScheduleEvent.Enabled(clock()), zone(), paused)
                 states.upsert(ReminderStateEntity(r.id, Phase.WAITING, next, null))
-                schedule(r.id, next)
+                schedule(r, next)
             }
         }
     }
@@ -188,14 +188,15 @@ class ReminderEngine(
     private suspend fun scheduleFresh(r: Reminder, event: ScheduleEvent) {
         val next = Scheduler.nextRing(r, event, zone(), settings.current().pausedUntil)
         states.upsert(ReminderStateEntity(r.id, Phase.WAITING, next, null))
-        schedule(r.id, next)
+        schedule(r, next)
         record(r.id, EventType.SCHEDULED, scheduledFor = next)
     }
 
-    private suspend fun schedule(id: Long, next: Instant?) {
+    private suspend fun schedule(r: Reminder, next: Instant?) {
+        val id = r.id
         if (next == null) {
             alarms.cancelRing(id)
-        } else if (!alarms.scheduleRing(id, next)) {
+        } else if (!alarms.scheduleRing(id, next, r.isAlarm)) {
             record(id, EventType.NO_EXACT_ALARM, scheduledFor = next, detail = "scheduled inexactly")
         }
     }
@@ -208,6 +209,8 @@ class ReminderEngine(
 
     private suspend fun record(id: Long?, type: EventType, scheduledFor: Instant? = null, detail: String? = null) =
         log.insert(EventLogEntity(reminderId = id, type = type, at = clock(), scheduledFor = scheduledFor, detail = detail))
+
+    private val Reminder.isAlarm: Boolean get() = ringStyle == RingStyle.ALARM
 
     private companion object {
         val EARLY_TOLERANCE: Duration = Duration.ofSeconds(60)

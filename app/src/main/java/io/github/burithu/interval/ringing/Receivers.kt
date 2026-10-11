@@ -6,6 +6,7 @@ import android.content.Context
 import android.content.Intent
 import io.github.burithu.interval.IntervalApp
 import io.github.burithu.interval.scheduling.RingAction
+import io.github.burithu.interval.ui.alarm.AlarmActivity
 import kotlinx.coroutines.launch
 
 /** Runs suspend work from a receiver without letting the process die mid-way. */
@@ -25,6 +26,11 @@ private fun BroadcastReceiver.launchAsync(context: Context, block: suspend (Inte
 class RingReceiver : BroadcastReceiver() {
     override fun onReceive(context: Context, intent: Intent) {
         val id = intent.getLongExtra(EXTRA_ID, -1).takeIf { it > 0 } ?: return
+        if (intent.action == ACTION_RING && intent.getBooleanExtra(EXTRA_ALARM, false)) {
+            // HyperOS SystemUI ignores full-screen intents from third-party apps. An alarm-clock
+            // broadcast may start an activity directly, so open the alarm screen from here.
+            AlarmActivity.open(context, id)
+        }
         launchAsync(context) { app ->
             when (intent.action) {
                 ACTION_RING -> app.container.engine.onRing(id)
@@ -37,6 +43,7 @@ class RingReceiver : BroadcastReceiver() {
         const val ACTION_RING = "io.github.burithu.interval.RING"
         const val ACTION_MISSED_LABEL = "io.github.burithu.interval.MISSED_LABEL"
         const val EXTRA_ID = "reminder_id"
+        const val EXTRA_ALARM = "alarm_style"
     }
 }
 

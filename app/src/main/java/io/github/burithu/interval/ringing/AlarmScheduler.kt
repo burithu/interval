@@ -24,8 +24,10 @@ class AlarmScheduler(private val context: Context) {
         Build.VERSION.SDK_INT < Build.VERSION_CODES.S || am.canScheduleExactAlarms()
 
     /** Returns false if the ring had to be scheduled inexactly. */
-    fun scheduleRing(reminderId: Long, at: Instant): Boolean {
-        val op = pending(reminderId, RingReceiver.ACTION_RING, REQ_RING)
+    fun scheduleRing(reminderId: Long, at: Instant, alarmStyle: Boolean): Boolean {
+        val op = pending(reminderId, RingReceiver.ACTION_RING, REQ_RING) {
+            putExtra(RingReceiver.EXTRA_ALARM, alarmStyle)
+        }
         return if (canScheduleExact()) {
             val show = PendingIntent.getActivity(
                 context, 0, Intent(context, MainActivity::class.java), PendingIntent.FLAG_IMMUTABLE,
@@ -46,11 +48,12 @@ class AlarmScheduler(private val context: Context) {
     fun cancelRing(reminderId: Long) = am.cancel(pending(reminderId, RingReceiver.ACTION_RING, REQ_RING))
     fun cancelMissedLabel(reminderId: Long) = am.cancel(pending(reminderId, RingReceiver.ACTION_MISSED_LABEL, REQ_MISSED))
 
-    private fun pending(reminderId: Long, action: String, req: Int): PendingIntent {
+    private fun pending(reminderId: Long, action: String, req: Int, extras: Intent.() -> Unit = {}): PendingIntent {
         val intent = Intent(context, RingReceiver::class.java)
             .setAction(action)
             .setData("interval://reminder/$reminderId".toUri())
             .putExtra(RingReceiver.EXTRA_ID, reminderId)
+            .apply(extras)
         return PendingIntent.getBroadcast(
             context, req, intent, PendingIntent.FLAG_IMMUTABLE or PendingIntent.FLAG_UPDATE_CURRENT,
         )

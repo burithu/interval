@@ -1,6 +1,8 @@
 package io.github.burithu.interval.ui.alarm
 
+import android.content.Context
 import android.content.Intent
+import androidx.core.net.toUri
 import android.os.Build
 import android.os.Bundle
 import android.view.WindowManager
@@ -46,6 +48,8 @@ import java.time.Duration
 import java.time.Instant
 import java.time.ZoneId
 
+private const val SESSION_WAIT_MS = 5_000L
+
 /** Full-screen alarm over the lock screen (screen 10). Closes when the ring stops for any reason. */
 class AlarmActivity : ComponentActivity() {
     private var reminderId by mutableLongStateOf(-1L)
@@ -78,6 +82,21 @@ class AlarmActivity : ComponentActivity() {
 
     companion object {
         const val EXTRA_ID = "reminder_id"
+
+        fun intent(context: Context, reminderId: Long): Intent =
+            Intent(context, AlarmActivity::class.java)
+                .setData("interval://reminder/$reminderId".toUri())
+                .putExtra(EXTRA_ID, reminderId)
+                .addFlags(Intent.FLAG_ACTIVITY_NEW_TASK or Intent.FLAG_ACTIVITY_NO_USER_ACTION)
+
+        /** Best effort: the notification's full-screen intent remains the fallback. */
+        fun open(context: Context, reminderId: Long) {
+            try {
+                context.startActivity(intent(context, reminderId))
+            } catch (_: RuntimeException) {
+                // Background start refused by the system.
+            }
+        }
     }
 }
 
@@ -87,7 +106,15 @@ private fun AlarmScreen(container: AppContainer, id: Long, onDone: () -> Unit) {
     val t = IntervalTheme.type
     val sessions by container.ringer.sessions.collectAsStateWithLifecycle()
     val session = sessions[id]
-    LaunchedEffect(session == null) { if (session == null) onDone() }
+    // Opened from the alarm broadcast, the screen can appear just before the ring session exists.
+    var seen by remember(id) { mutableStateOf(false) }
+    if (session != null) seen = true
+    LaunchedEffect(id, session == null) {
+        if (session == null) {
+            if (!seen) delay(SESSION_WAIT_MS)
+            onDone()
+        }
+    }
     if (session == null) return
 
     val zone = remember { ZoneId.systemDefault() }

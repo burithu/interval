@@ -168,14 +168,16 @@ private fun PermissionPanel() {
     var notifOk by remember { mutableStateOf(notificationsAllowed(context)) }
     var exactOk by remember { mutableStateOf(exactAlarmsAllowed(context)) }
     var fullScreenOk by remember { mutableStateOf(fullScreenAllowed(context)) }
+    var overlayOk by remember { mutableStateOf(Settings.canDrawOverlays(context)) }
     LifecycleResumeEffect(Unit) {
         notifOk = notificationsAllowed(context)
         exactOk = exactAlarmsAllowed(context)
         fullScreenOk = fullScreenAllowed(context)
+        overlayOk = Settings.canDrawOverlays(context)
         onPauseOrDispose { }
     }
     val askNotif = rememberLauncherForActivityResult(ActivityResultContracts.RequestPermission()) { notifOk = it }
-    if (notifOk && exactOk && fullScreenOk) return
+    if (notifOk && exactOk && fullScreenOk && overlayOk) return
     Column(
         Modifier.fillMaxWidth().background(c.fg).padding(Spacing.m),
         verticalArrangement = Arrangement.spacedBy(Spacing.s),
@@ -209,6 +211,18 @@ private fun PermissionPanel() {
                 modifier = Modifier.clickable {
                     context.startActivity(
                         Intent(Settings.ACTION_MANAGE_APP_USE_FULL_SCREEN_INTENT, "package:${context.packageName}".toUri()),
+                    )
+                }.padding(vertical = Spacing.s),
+            )
+        }
+        if (!overlayOk) {
+            Text(
+                "ALLOW DISPLAY OVER OTHER APPS (ALARM SCREEN)",
+                style = t.fieldLabel,
+                color = c.bg,
+                modifier = Modifier.clickable {
+                    context.startActivity(
+                        Intent(Settings.ACTION_MANAGE_OVERLAY_PERMISSION, "package:${context.packageName}".toUri()),
                     )
                 }.padding(vertical = Spacing.s),
             )

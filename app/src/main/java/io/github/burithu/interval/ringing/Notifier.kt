@@ -104,10 +104,7 @@ class Notifier(private val context: Context) {
     private fun alarmScreen(reminderId: Long) = PendingIntent.getActivity(
         context,
         reminderId.toInt(),
-        Intent(context, AlarmActivity::class.java)
-            .setData("interval://reminder/$reminderId".toUri())
-            .putExtra(AlarmActivity.EXTRA_ID, reminderId)
-            .addFlags(Intent.FLAG_ACTIVITY_NEW_TASK or Intent.FLAG_ACTIVITY_NO_USER_ACTION),
+        AlarmActivity.intent(context, reminderId),
         PendingIntent.FLAG_IMMUTABLE or PendingIntent.FLAG_UPDATE_CURRENT,
     )
 
