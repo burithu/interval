@@ -1,9 +1,11 @@
 package io.github.burithu.interval.data.db
 
+import androidx.room.ColumnInfo
 import androidx.room.Entity
 import androidx.room.ForeignKey
 import androidx.room.Index
 import androidx.room.PrimaryKey
+import io.github.burithu.interval.data.AlarmMode
 import io.github.burithu.interval.data.Days
 import io.github.burithu.interval.data.Phase
 import io.github.burithu.interval.data.Reminder
@@ -22,6 +24,7 @@ data class ReminderEntity(
     val daysMask: Int,
     val timingMode: TimingMode,
     val ringStyle: RingStyle,
+    @ColumnInfo(defaultValue = "FULL") val alarmMode: AlarmMode,
     val ringSeconds: Int,
     val snoozeMinutes: Int,
     val soundUri: String?,
@@ -63,13 +66,13 @@ data class EventLogEntity(
 
 fun ReminderEntity.toDomain() = Reminder(
     id = id, label = label, intervalMinutes = intervalMinutes, windowStart = windowStart, windowEnd = windowEnd,
-    days = Days(daysMask), timingMode = timingMode, ringStyle = ringStyle, ringSeconds = ringSeconds,
+    days = Days(daysMask), timingMode = timingMode, ringStyle = ringStyle, alarmMode = alarmMode, ringSeconds = ringSeconds,
     snoozeMinutes = snoozeMinutes, soundUri = soundUri, vibrate = vibrate, enabled = enabled, createdAt = createdAt,
 )
 
 fun Reminder.toEntity() = ReminderEntity(
     id = id, label = label, intervalMinutes = intervalMinutes, windowStart = windowStart, windowEnd = windowEnd,
-    daysMask = days.mask, timingMode = timingMode, ringStyle = ringStyle, ringSeconds = ringSeconds,
+    daysMask = days.mask, timingMode = timingMode, ringStyle = ringStyle, alarmMode = alarmMode, ringSeconds = ringSeconds,
     snoozeMinutes = snoozeMinutes, soundUri = soundUri, vibrate = vibrate, enabled = enabled, createdAt = createdAt,
 )
 

@@ -13,6 +13,12 @@ enum class TimingMode {
 
 enum class RingStyle { NOTIFICATION, ALARM }
 
+/**
+ * What an alarm-style ring does besides showing the alarm screen (D33). Silent mode reduces any
+ * of these to the screen only; vibrate mode drops the sound.
+ */
+enum class AlarmMode { SCREEN, VIBRATE, FULL }
+
 enum class Phase { WAITING, RINGING, SNOOZED, DONE_TODAY }
 
 /** Day-of-week set stored as a bitmask. Bit 0 = Monday … bit 6 = Sunday. */
@@ -47,6 +53,8 @@ data class Reminder(
     val days: Days = Days.WEEKDAYS,
     val timingMode: TimingMode = TimingMode.RESTART,
     val ringStyle: RingStyle = RingStyle.NOTIFICATION,
+    /** Only used when [ringStyle] is ALARM. */
+    val alarmMode: AlarmMode = AlarmMode.FULL,
     val ringSeconds: Int = 60,
     val snoozeMinutes: Int = 10,
     val soundUri: String? = null,

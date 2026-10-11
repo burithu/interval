@@ -13,8 +13,8 @@ android {
         minSdk = 26
         targetSdk = 37
         // Bump both with every release; see CHANGELOG.md.
-        versionCode = 9
-        versionName = "0.9.0"
+        versionCode = 10
+        versionName = "0.10.0"
     }
 
     buildTypes {

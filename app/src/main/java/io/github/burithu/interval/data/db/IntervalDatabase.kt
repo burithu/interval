@@ -1,6 +1,7 @@
 package io.github.burithu.interval.data.db
 
 import android.content.Context
+import androidx.room.AutoMigration
 import androidx.room.Database
 import androidx.room.Room
 import androidx.room.RoomDatabase
@@ -15,8 +16,10 @@ class Converters {
 
 @Database(
     entities = [ReminderEntity::class, ReminderStateEntity::class, EventLogEntity::class],
-    version = 1,
+    version = 2,
     exportSchema = true,
+    // 2: reminders.alarmMode (D33); existing alarms become FULL, what they did before.
+    autoMigrations = [AutoMigration(from = 1, to = 2)],
 )
 @TypeConverters(Converters::class)
 abstract class IntervalDatabase : RoomDatabase() {

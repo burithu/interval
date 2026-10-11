@@ -3,6 +3,11 @@
 Every version is also a [GitHub release](https://github.com/burithu/interval/releases).
 Versions before 1.0.0 are pre-releases built during development; 1.0.0 is the first stable release (milestone M7).
 
+## 0.10.0 — Alarm types and silent mode
+- Alarm reminders have a type: Screen only, Vibrate, or Full alarm (sound and vibration). Existing alarms stay Full alarm.
+- Alarms respect the phone's mode: on silent they only show on screen; on vibrate they make no sound.
+- The editor shows Sound only when it's used, and Vibrate only for notifications.
+
 ## 0.9.0 — UI streamline
 - One type scale of 11 sizes; nothing smaller than 11sp.
 - Dialogs and the time picker use the app font and square corners.

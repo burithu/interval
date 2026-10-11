@@ -93,6 +93,11 @@ Mockups: https://claude.ai/artifact/H6wWtw87euJ4r6XuFwT8GR (style options: https
 - Reboot / time change / restore: recompute all. A restart-mode reminder that was due while off reschedules to now + interval (no ring at boot).
 - Missed notification stays in the shade until the next ring replaces it.
 
+**Ring style and phone mode** (D33)
+- Notification: chime + vibration (Vibrate switch).
+- Alarm: always the full-screen alarm for the ring length, plus its alarm type: Screen only (nothing else), Vibrate, or Full alarm (sound + vibration).
+- Both follow the ringer mode. Silent → no sound, no vibration (an alarm only shows its screen). Vibrate → no sound.
+
 ## 4. Visual design system ("Big Type")
 
 **Color tokens**
@@ -250,3 +255,4 @@ Onboarding (M3) on Xiaomi must cover: Autostart, Battery "No restrictions", noti
 | D30 | setAlarmClock(); status-bar icon accepted |
 | D31 | In-app theme: System / Light / Dark in Settings, default System (overrides D16's no-toggle) |
 | D32 | UI streamline: 11-size type scale, minimum 11sp; shared TopBar/ListRow/SmallButton; drawn icons; keep the filled Add bar; row meta wraps to 2 lines; Pause chip outlined at rest, filled while paused |
+| D33 | Alarm type per reminder: Screen only / Vibrate / Full alarm (default Full). Alarms no longer ring through silent: silent shows the screen only, vibrate mode drops the sound (overrides "rings through silent mode") |

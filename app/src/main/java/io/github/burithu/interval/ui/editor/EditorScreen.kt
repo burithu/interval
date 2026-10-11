@@ -54,6 +54,7 @@ import androidx.lifecycle.SavedStateHandle
 import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
 import io.github.burithu.interval.AppContainer
+import io.github.burithu.interval.data.AlarmMode
 import io.github.burithu.interval.data.Days
 import io.github.burithu.interval.data.Reminder
 import io.github.burithu.interval.data.RingStyle
@@ -88,6 +89,7 @@ class EditorViewModel(private val c: AppContainer, handle: SavedStateHandle) : V
     var days by mutableStateOf(Days.WEEKDAYS)
     var timingMode by mutableStateOf(TimingMode.RESTART)
     var ringStyle by mutableStateOf(RingStyle.NOTIFICATION)
+    var alarmMode by mutableStateOf(AlarmMode.FULL)
     var snoozeMinutes by mutableIntStateOf(10)
     var ringSeconds by mutableIntStateOf(60)
     var soundUri by mutableStateOf<String?>(null)
@@ -102,7 +104,7 @@ class EditorViewModel(private val c: AppContainer, handle: SavedStateHandle) : V
                 c.db.reminderDao().get(id)?.toDomain()?.let { r ->
                     original = r
                     label = r.label; intervalMinutes = r.intervalMinutes; windowStart = r.windowStart
-                    windowEnd = r.windowEnd; days = r.days; timingMode = r.timingMode; ringStyle = r.ringStyle
+                    windowEnd = r.windowEnd; days = r.days; timingMode = r.timingMode; ringStyle = r.ringStyle; alarmMode = r.alarmMode
                     snoozeMinutes = r.snoozeMinutes; ringSeconds = r.ringSeconds; soundUri = r.soundUri; vibrate = r.vibrate
                 }
             }
@@ -120,7 +122,7 @@ class EditorViewModel(private val c: AppContainer, handle: SavedStateHandle) : V
         val base = original ?: Reminder(label = "", createdAt = Instant.now())
         val r = base.copy(
             label = label.trim().take(40), intervalMinutes = intervalMinutes, windowStart = windowStart,
-            windowEnd = windowEnd, days = days, timingMode = timingMode, ringStyle = ringStyle,
+            windowEnd = windowEnd, days = days, timingMode = timingMode, ringStyle = ringStyle, alarmMode = alarmMode,
             snoozeMinutes = snoozeMinutes, ringSeconds = ringSeconds, soundUri = soundUri, vibrate = vibrate, enabled = true,
         )
         viewModelScope.launch {
@@ -248,9 +250,20 @@ fun EditorScreen(vm: EditorViewModel, onClose: () -> Unit) {
                     selected = vm.ringStyle,
                     onSelect = { vm.ringStyle = it },
                 )
+                if (vm.ringStyle == RingStyle.ALARM) {
+                    Segmented(
+                        options = listOf(AlarmMode.SCREEN to "Screen only", AlarmMode.VIBRATE to "Vibrate", AlarmMode.FULL to "Full alarm"),
+                        selected = vm.alarmMode,
+                        onSelect = { vm.alarmMode = it },
+                    )
+                }
                 Hint(
-                    if (vm.ringStyle == RingStyle.ALARM) "Full-screen alarm. Rings even when the phone is on silent."
-                    else "A chime and vibration. Follows the phone's silent and vibrate modes.",
+                    when {
+                        vm.ringStyle == RingStyle.NOTIFICATION -> "A chime and vibration."
+                        vm.alarmMode == AlarmMode.SCREEN -> "Full-screen alarm, no sound or vibration."
+                        vm.alarmMode == AlarmMode.VIBRATE -> "Full-screen alarm that vibrates."
+                        else -> "Full-screen alarm with sound and vibration."
+                    } + " On silent it only shows; on vibrate it makes no sound.",
                 )
             }
             Column {
@@ -259,23 +272,30 @@ fun EditorScreen(vm: EditorViewModel, onClose: () -> Unit) {
                     HorizontalDivider(color = c.line)
                 }
                 SettingRow("Snooze", null, formatInterval(vm.snoozeMinutes)) { picker = Picker.Snooze }
-                HorizontalDivider(color = c.line)
-                SettingRow("Sound", null, soundTitle(context, vm.soundUri)) {
-                    soundPicker.launch(
-                        Intent(RingtoneManager.ACTION_RINGTONE_PICKER)
-                            .putExtra(RingtoneManager.EXTRA_RINGTONE_TYPE, ringtoneType(vm.ringStyle))
-                            .putExtra(RingtoneManager.EXTRA_RINGTONE_SHOW_DEFAULT, true)
-                            .putExtra(RingtoneManager.EXTRA_RINGTONE_SHOW_SILENT, false)
-                            .putExtra(
-                                RingtoneManager.EXTRA_RINGTONE_EXISTING_URI,
-                                vm.soundUri?.toUri() ?: RingtoneManager.getDefaultUri(ringtoneType(vm.ringStyle)),
-                            ),
-                    )
+                // Sound and Vibrate only where they apply: an alarm's mode already says whether it
+                // makes a sound or vibrates.
+                val alarm = vm.ringStyle == RingStyle.ALARM
+                if (!alarm || vm.alarmMode == AlarmMode.FULL) {
+                    HorizontalDivider(color = c.line)
+                    SettingRow("Sound", null, soundTitle(context, vm.soundUri)) {
+                        soundPicker.launch(
+                            Intent(RingtoneManager.ACTION_RINGTONE_PICKER)
+                                .putExtra(RingtoneManager.EXTRA_RINGTONE_TYPE, ringtoneType(vm.ringStyle))
+                                .putExtra(RingtoneManager.EXTRA_RINGTONE_SHOW_DEFAULT, true)
+                                .putExtra(RingtoneManager.EXTRA_RINGTONE_SHOW_SILENT, false)
+                                .putExtra(
+                                    RingtoneManager.EXTRA_RINGTONE_EXISTING_URI,
+                                    vm.soundUri?.toUri() ?: RingtoneManager.getDefaultUri(ringtoneType(vm.ringStyle)),
+                                ),
+                        )
+                    }
                 }
-                HorizontalDivider(color = c.line)
-                ListRow(twoLine = false, onClick = { vm.vibrate = !vm.vibrate }, role = Role.Switch) {
-                    Text("Vibrate", style = t.body, color = c.fg, modifier = Modifier.weight(1f))
-                    Switch(checked = vm.vibrate, onCheckedChange = { vm.vibrate = it })
+                if (!alarm) {
+                    HorizontalDivider(color = c.line)
+                    ListRow(twoLine = false, onClick = { vm.vibrate = !vm.vibrate }, role = Role.Switch) {
+                        Text("Vibrate", style = t.body, color = c.fg, modifier = Modifier.weight(1f))
+                        Switch(checked = vm.vibrate, onCheckedChange = { vm.vibrate = it })
+                    }
                 }
             }
             if (!vm.isNew) {

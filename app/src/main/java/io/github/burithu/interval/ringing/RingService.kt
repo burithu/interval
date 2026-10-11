@@ -23,6 +23,7 @@ import android.provider.Settings
 import androidx.core.app.ServiceCompat
 import androidx.core.net.toUri
 import io.github.burithu.interval.IntervalApp
+import io.github.burithu.interval.data.AlarmMode
 import io.github.burithu.interval.data.RingStyle
 import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.Dispatchers
@@ -38,10 +39,13 @@ import java.time.Instant
  * Plays ring sound and vibration itself instead of relying on notification channel sound,
  * which HyperOS mutes per app by default.
  *
- * - Alarm: alarm audio usage, loops for the ring length, rings through silent mode.
- *   The notification carries a full-screen intent to AlarmActivity.
- * - Notification: one chime and vibration, following the ringer mode. The notification is
- *   then detached so it stays in the shade, dismissible, after the service stops.
+ * - Alarm: opens AlarmActivity for the ring length. Depending on its [AlarmMode] it also loops
+ *   sound on the alarm stream and/or vibrates. The notification carries a full-screen intent
+ *   as a fallback.
+ * - Notification: one chime and vibration. The notification is then detached so it stays in
+ *   the shade, dismissible, after the service stops.
+ *
+ * Both follow the ringer mode: silent means no sound or vibration, vibrate means no sound.
  */
 class RingService : Service() {
     private val container get() = (application as IntervalApp).container
@@ -112,9 +116,11 @@ class RingService : Service() {
         playingId = r.id
 
         val alarm = r.ringStyle == RingStyle.ALARM
+        // Both styles follow the ringer mode (D33): silent shows only, vibrate drops the sound.
+        // An alarm always shows its screen; its mode decides what else it does.
         val mode = audio.ringerMode
-        val withSound = alarm || mode == AudioManager.RINGER_MODE_NORMAL
-        val withVibration = r.vibrate && (alarm || mode != AudioManager.RINGER_MODE_SILENT)
+        val withSound = mode == AudioManager.RINGER_MODE_NORMAL && (!alarm || r.alarmMode == AlarmMode.FULL)
+        val withVibration = mode != AudioManager.RINGER_MODE_SILENT && (if (alarm) r.alarmMode != AlarmMode.SCREEN else r.vibrate)
         val maxLength = if (alarm) Duration.ofSeconds(r.ringSeconds.toLong()) else CHIME_MAX
 
         val power = getSystemService(PowerManager::class.java)
