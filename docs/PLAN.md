@@ -22,28 +22,28 @@ Strategy: riskiest first. Scheduling logic, then real rings on the Xiaomi 13, th
 Done when: all rules pass their tests.
 
 ### M2 — Smallest working version
-- [ ] Room DB, DAOs, repository; DataStore settings
-- [ ] Basic Home list + basic editor (unstyled is fine)
-- [ ] `setAlarmClock` scheduling; `RingReceiver` → notification with Dismiss/Snooze; swipe = dismiss; missed check
-- [ ] Per-reminder notification channels
-- [ ] `RescheduleReceiver` (boot, update, time, time zone, permission)
-- [ ] Event log
+- [x] Room DB, DAOs, repository; DataStore settings
+- [x] Basic Home list + basic editor (unstyled is fine)
+- [x] `setAlarmClock` scheduling; `RingReceiver` → notification with Dismiss/Snooze; swipe = dismiss; missed check
+- [x] Per-reminder notification channels
+- [x] `RescheduleReceiver` (boot, update, time, time zone, permission)
+- [x] Event log
 
 Done when: a reminder created on the Xiaomi 13 rings, dismiss restarts it, and it survives a reboot.
 
 ### M3 — Onboarding & reliability
-- [ ] Screens 01–03; permission checks; warning banner (07)
-- [ ] Xiaomi test pass 1 (screen off 2 h, battery saver, swiped from recents) — review event log
+- [x] Screens 01–03; permission checks; warning banner (07)
+- [x] Xiaomi test pass 1 (screen off 2 h, battery saver, swiped from recents) — review event log
 
 ### M4 — Alarm-style rings
-- [ ] `AlarmRingService` (confirm foreground service type for Android 14+)
-- [ ] `AlarmActivity` over lock screen via full-screen intent
-- [ ] Ring length → missed; snooze from alarm screen
+- [x] `AlarmRingService` (confirm foreground service type for Android 14+)
+- [x] `AlarmActivity` over lock screen via full-screen intent
+- [x] Ring length → missed; snooze from alarm screen
 
 ### M5 — Big Type UI
-- [ ] Home: hero countdown, sorting, switches, starters, empty state (04, 05)
-- [ ] Full editor (09): all fields, overnight "+1 DAY", hints, validation, delete
-- [ ] Dark theme, countdown animation, reduced motion
+- [x] Home: hero countdown, sorting, switches, starters, empty state (04, 05)
+- [x] Full editor (09): all fields, overnight "+1 DAY", hints, validation, delete
+- [x] Dark theme, countdown animation, reduced motion
 
 ### M6 — Pause, Settings, log viewer
 - [ ] Pause sheet + paused Home (06, 08)

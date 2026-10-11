@@ -1,5 +1,13 @@
 package io.github.burithu.interval.ui.editor
 
+import android.app.Activity
+import android.content.Context
+import android.content.Intent
+import android.media.RingtoneManager
+import android.net.Uri
+import android.os.Build
+import androidx.activity.compose.rememberLauncherForActivityResult
+import androidx.activity.result.contract.ActivityResultContracts
 import androidx.compose.foundation.background
 import androidx.compose.foundation.border
 import androidx.compose.foundation.clickable
@@ -10,16 +18,19 @@ import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.aspectRatio
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
+import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.heightIn
 import androidx.compose.foundation.layout.imePadding
 import androidx.compose.foundation.layout.navigationBarsPadding
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.statusBarsPadding
 import androidx.compose.foundation.rememberScrollState
+import androidx.compose.foundation.text.BasicTextField
 import androidx.compose.foundation.text.KeyboardOptions
 import androidx.compose.foundation.verticalScroll
 import androidx.compose.material3.AlertDialog
 import androidx.compose.material3.ExperimentalMaterial3Api
+import androidx.compose.material3.HorizontalDivider
 import androidx.compose.material3.OutlinedTextField
 import androidx.compose.material3.Switch
 import androidx.compose.material3.Text
@@ -34,9 +45,18 @@ import androidx.compose.runtime.remember
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.graphics.SolidColor
+import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.semantics.Role
+import androidx.compose.ui.text.input.KeyboardCapitalization
 import androidx.compose.ui.text.input.KeyboardType
+import androidx.compose.ui.text.style.BaselineShift
+import androidx.compose.ui.text.SpanStyle
+import androidx.compose.ui.text.buildAnnotatedString
+import androidx.compose.ui.text.withStyle
 import androidx.compose.ui.unit.dp
+import androidx.compose.ui.unit.sp
+import androidx.core.net.toUri
 import androidx.lifecycle.SavedStateHandle
 import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
@@ -70,6 +90,7 @@ class EditorViewModel(private val c: AppContainer, handle: SavedStateHandle) : V
     var ringStyle by mutableStateOf(RingStyle.NOTIFICATION)
     var snoozeMinutes by mutableIntStateOf(10)
     var ringSeconds by mutableIntStateOf(60)
+    var soundUri by mutableStateOf<String?>(null)
     var vibrate by mutableStateOf(true)
     private var original: Reminder? = null
 
@@ -82,7 +103,7 @@ class EditorViewModel(private val c: AppContainer, handle: SavedStateHandle) : V
                     original = r
                     label = r.label; intervalMinutes = r.intervalMinutes; windowStart = r.windowStart
                     windowEnd = r.windowEnd; days = r.days; timingMode = r.timingMode; ringStyle = r.ringStyle
-                    snoozeMinutes = r.snoozeMinutes; ringSeconds = r.ringSeconds; vibrate = r.vibrate
+                    snoozeMinutes = r.snoozeMinutes; ringSeconds = r.ringSeconds; soundUri = r.soundUri; vibrate = r.vibrate
                 }
             }
         }
@@ -91,8 +112,7 @@ class EditorViewModel(private val c: AppContainer, handle: SavedStateHandle) : V
     val canSave: Boolean get() = label.isNotBlank() && !days.isEmpty && intervalMinutes in 1..1440
 
     fun toggleDay(d: DayOfWeek) {
-        val bit = Days.of(d).mask
-        days = Days(days.mask xor bit)
+        days = Days(days.mask xor Days.of(d).mask)
     }
 
     fun save(onDone: () -> Unit) {
@@ -101,7 +121,7 @@ class EditorViewModel(private val c: AppContainer, handle: SavedStateHandle) : V
         val r = base.copy(
             label = label.trim().take(40), intervalMinutes = intervalMinutes, windowStart = windowStart,
             windowEnd = windowEnd, days = days, timingMode = timingMode, ringStyle = ringStyle,
-            snoozeMinutes = snoozeMinutes, ringSeconds = ringSeconds, vibrate = vibrate, enabled = true,
+            snoozeMinutes = snoozeMinutes, ringSeconds = ringSeconds, soundUri = soundUri, vibrate = vibrate, enabled = true,
         )
         viewModelScope.launch {
             c.engine.save(r)
@@ -117,74 +137,87 @@ class EditorViewModel(private val c: AppContainer, handle: SavedStateHandle) : V
     }
 }
 
-@OptIn(ExperimentalMaterial3Api::class)
+private val PRESETS = listOf(20, 45, 60, 120)
+private const val CUSTOM = -1
+
+private sealed interface Picker {
+    data class Time(val start: Boolean) : Picker
+    data object Interval : Picker
+    data object Snooze : Picker
+    data object RingFor : Picker
+    data object Delete : Picker
+}
+
+/** Screen 09. One scrolling form for new and existing reminders. */
 @Composable
 fun EditorScreen(vm: EditorViewModel, onClose: () -> Unit) {
     val c = IntervalTheme.colors
     val t = IntervalTheme.type
-    var picking by remember { mutableStateOf<String?>(null) } // "start" | "end"
-    var customText by remember { mutableStateOf("") }
-    val presets = listOf(20, 45, 60, 120)
+    val context = LocalContext.current
+    var picker by remember { mutableStateOf<Picker?>(null) }
+    val soundPicker = rememberLauncherForActivityResult(ActivityResultContracts.StartActivityForResult()) { result ->
+        if (result.resultCode == Activity.RESULT_OK) {
+            val uri = result.data?.parcelableUri(RingtoneManager.EXTRA_RINGTONE_PICKED_URI)
+            vm.soundUri = uri?.takeUnless { it == RingtoneManager.getDefaultUri(ringtoneType(vm.ringStyle)) }?.toString()
+        }
+    }
 
     Column(Modifier.fillMaxSize().background(c.bg).statusBarsPadding().navigationBarsPadding().imePadding()) {
         Row(
             Modifier.fillMaxWidth().heightIn(min = 56.dp).padding(horizontal = Spacing.s),
             verticalAlignment = Alignment.CenterVertically,
         ) {
-            Text("✕", style = t.screenTitle, color = c.muted, modifier = Modifier.clickable(role = Role.Button, onClick = onClose).padding(Spacing.m))
+            TopAction("✕", c.muted, enabled = true, onClose)
             Text(if (vm.isNew) "NEW REMINDER" else "EDIT REMINDER", style = t.sheetTitle, color = c.fg, modifier = Modifier.weight(1f))
-            Text(
-                "SAVE",
-                style = t.sheetTitle,
-                color = if (vm.canSave) c.accent else c.muted,
-                modifier = Modifier.clickable(enabled = vm.canSave, role = Role.Button) { vm.save(onClose) }.padding(Spacing.m),
-            )
+            TopAction("SAVE", if (vm.canSave) c.accent else c.muted, enabled = vm.canSave) { vm.save(onClose) }
         }
         Column(
             Modifier.weight(1f).verticalScroll(rememberScrollState()).padding(horizontal = Spacing.screen, vertical = Spacing.s),
-            verticalArrangement = Arrangement.spacedBy(Spacing.l),
+            verticalArrangement = Arrangement.spacedBy(Spacing.xl),
         ) {
             Section("Label") {
-                OutlinedTextField(
-                    value = vm.label, onValueChange = { vm.label = it.take(40) }, singleLine = true,
-                    placeholder = { Text("Drink water") }, modifier = Modifier.fillMaxWidth(),
+                BasicTextField(
+                    value = vm.label,
+                    onValueChange = { vm.label = it.take(40) },
+                    singleLine = true,
+                    textStyle = t.reminderName.copy(fontSize = 18.sp, color = c.fg),
+                    cursorBrush = SolidColor(c.accent),
+                    keyboardOptions = KeyboardOptions(capitalization = KeyboardCapitalization.Sentences),
+                    decorationBox = { inner ->
+                        Column {
+                            Box(Modifier.padding(vertical = Spacing.s)) {
+                                if (vm.label.isEmpty()) Text("Drink water", style = t.reminderName.copy(fontSize = 18.sp), color = c.muted)
+                                inner()
+                            }
+                            Box(Modifier.fillMaxWidth().height(2.dp).background(c.fg))
+                        }
+                    },
                 )
             }
             Section("Repeat every") {
+                val isPreset = vm.intervalMinutes in PRESETS
                 PillRow(
-                    options = presets.map { it to formatInterval(it) },
-                    isSelected = { it == vm.intervalMinutes },
-                    onSelect = { vm.intervalMinutes = it; customText = "" },
-                )
-                OutlinedTextField(
-                    value = customText,
-                    onValueChange = { s ->
-                        customText = s.filter(Char::isDigit).take(4)
-                        customText.toIntOrNull()?.takeIf { it in 1..1440 }?.let { vm.intervalMinutes = it }
-                    },
-                    label = { Text("Custom (minutes, 1–1440)") },
-                    keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Number),
-                    singleLine = true,
-                    modifier = Modifier.fillMaxWidth(),
+                    options = PRESETS.map { it to formatInterval(it) } +
+                        (CUSTOM to if (isPreset) "Custom" else "Custom · ${formatInterval(vm.intervalMinutes)}"),
+                    isSelected = { if (it == CUSTOM) !isPreset else it == vm.intervalMinutes },
+                    onSelect = { if (it == CUSTOM) picker = Picker.Interval else vm.intervalMinutes = it },
                 )
             }
             Section("Active between") {
-                Row(verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.spacedBy(Spacing.m)) {
-                    TimeBox(formatMinuteOfDay(vm.windowStart), Modifier.weight(1f)) { picking = "start" }
-                    Text("→", style = t.screenTitle, color = c.fg)
-                    val suffix = when {
-                        vm.windowEnd == vm.windowStart -> " (24 h)"
-                        vm.windowEnd < vm.windowStart -> " +1"
-                        else -> ""
+                Row(verticalAlignment = Alignment.Bottom, horizontalArrangement = Arrangement.spacedBy(Spacing.m)) {
+                    TimeBox(formatMinuteOfDay(vm.windowStart), null, Modifier.weight(1f)) { picker = Picker.Time(start = true) }
+                    Text("→", style = t.screenTitle, color = c.fg, modifier = Modifier.padding(bottom = Spacing.s))
+                    val badge = when {
+                        vm.windowEnd == vm.windowStart -> "24 H"
+                        vm.windowEnd < vm.windowStart -> "+1 DAY"
+                        else -> null
                     }
-                    TimeBox(formatMinuteOfDay(vm.windowEnd) + suffix, Modifier.weight(1f)) { picking = "end" }
+                    TimeBox(formatMinuteOfDay(vm.windowEnd), badge, Modifier.weight(1f)) { picker = Picker.Time(start = false) }
                 }
-                val hint = when {
-                    vm.windowEnd == vm.windowStart -> "Same start and end: active all day."
-                    vm.windowEnd < vm.windowStart -> "Ends the next day. Days below are the days it starts."
-                    else -> null
+                when {
+                    vm.windowEnd == vm.windowStart -> Hint("Same start and end: active all day.", accent = true)
+                    vm.windowEnd < vm.windowStart -> Hint("Ends the next day. Days below are the days it starts.", accent = true)
                 }
-                hint?.let { Text(it, style = t.meta, color = c.accent) }
             }
             Section("Days") {
                 Row(horizontalArrangement = Arrangement.spacedBy(Spacing.xs)) {
@@ -196,9 +229,7 @@ fun EditorScreen(vm: EditorViewModel, onClose: () -> Unit) {
                                 .border(1.5.dp, if (on) c.accent else c.fg)
                                 .clickable(role = Role.Checkbox) { vm.toggleDay(d) },
                             contentAlignment = Alignment.Center,
-                        ) {
-                            Text(d.name.take(1), style = t.reminderName, color = if (on) c.onAccent else c.fg)
-                        }
+                        ) { Text(d.name.take(1), style = t.reminderName, color = if (on) c.onAccent else c.fg) }
                     }
                 }
                 if (vm.days.isEmpty) Text("Pick at least one day.", style = t.meta, color = c.danger)
@@ -209,11 +240,9 @@ fun EditorScreen(vm: EditorViewModel, onClose: () -> Unit) {
                     selected = vm.timingMode,
                     onSelect = { vm.timingMode = it },
                 )
-                val every = formatInterval(vm.intervalMinutes)
-                Text(
-                    if (vm.timingMode == TimingMode.RESTART) "Next ring $every after you dismiss."
-                    else "Rings every $every from ${formatMinuteOfDay(vm.windowStart)}, no matter when you dismiss.",
-                    style = t.meta, color = c.muted,
+                Hint(
+                    if (vm.timingMode == TimingMode.RESTART) "Next ring ${formatInterval(vm.intervalMinutes)} after you dismiss."
+                    else "Rings at ${fixedSlots(vm.windowStart, vm.windowEnd, vm.intervalMinutes)} no matter when you dismiss.",
                 )
             }
             Section("Ring as") {
@@ -222,59 +251,77 @@ fun EditorScreen(vm: EditorViewModel, onClose: () -> Unit) {
                     selected = vm.ringStyle,
                     onSelect = { vm.ringStyle = it },
                 )
-                Text(
+                Hint(
                     if (vm.ringStyle == RingStyle.ALARM) "Full-screen alarm. Rings even when the phone is on silent."
                     else "A chime and vibration. Follows the phone's silent and vibrate modes.",
-                    style = t.meta, color = c.muted,
                 )
+            }
+            Column {
                 if (vm.ringStyle == RingStyle.ALARM) {
-                    FieldLabel("Ring for")
-                    PillRow(
-                        options = listOf(30, 60, 120, 300).map { it to if (it < 60) "$it s" else "${it / 60} min" },
-                        isSelected = { it == vm.ringSeconds },
-                        onSelect = { vm.ringSeconds = it },
+                    SettingRow("Ring for", "Then it stops and counts as missed.", ringLength(vm.ringSeconds)) { picker = Picker.RingFor }
+                    HorizontalDivider(color = c.line)
+                }
+                SettingRow("Snooze", null, formatInterval(vm.snoozeMinutes)) { picker = Picker.Snooze }
+                HorizontalDivider(color = c.line)
+                SettingRow("Sound", null, soundTitle(context, vm.soundUri)) {
+                    soundPicker.launch(
+                        Intent(RingtoneManager.ACTION_RINGTONE_PICKER)
+                            .putExtra(RingtoneManager.EXTRA_RINGTONE_TYPE, ringtoneType(vm.ringStyle))
+                            .putExtra(RingtoneManager.EXTRA_RINGTONE_SHOW_DEFAULT, true)
+                            .putExtra(RingtoneManager.EXTRA_RINGTONE_SHOW_SILENT, false)
+                            .putExtra(
+                                RingtoneManager.EXTRA_RINGTONE_EXISTING_URI,
+                                vm.soundUri?.toUri() ?: RingtoneManager.getDefaultUri(ringtoneType(vm.ringStyle)),
+                            ),
                     )
-                    Text("Then it stops and counts as missed.", style = t.meta, color = c.muted)
+                }
+                HorizontalDivider(color = c.line)
+                Row(
+                    Modifier.fillMaxWidth().heightIn(min = Spacing.minTouch).clickable(role = Role.Switch) { vm.vibrate = !vm.vibrate },
+                    verticalAlignment = Alignment.CenterVertically,
+                ) {
+                    Text("Vibrate", style = t.body.copy(fontSize = 14.sp), color = c.fg, modifier = Modifier.weight(1f))
+                    Switch(checked = vm.vibrate, onCheckedChange = { vm.vibrate = it })
                 }
             }
-            Section("Snooze") {
-                PillRow(
-                    options = listOf(5, 10, 15, 30).map { it to formatInterval(it) },
-                    isSelected = { it == vm.snoozeMinutes },
-                    onSelect = { vm.snoozeMinutes = it },
-                )
-            }
-            Row(Modifier.fillMaxWidth(), verticalAlignment = Alignment.CenterVertically) {
-                Text("Vibrate", style = t.body, color = c.fg, modifier = Modifier.weight(1f))
-                Switch(checked = vm.vibrate, onCheckedChange = { vm.vibrate = it })
-            }
             if (!vm.isNew) {
-                Text(
-                    "Delete reminder",
-                    style = t.reminderName,
-                    color = c.danger,
-                    modifier = Modifier.fillMaxWidth().clickable(role = Role.Button) { vm.delete(onClose) }.padding(vertical = Spacing.m),
-                )
+                Box(
+                    Modifier.fillMaxWidth().heightIn(min = Spacing.minTouch).clickable(role = Role.Button) { picker = Picker.Delete },
+                    contentAlignment = Alignment.Center,
+                ) { Text("Delete reminder", style = t.reminderName, color = c.danger) }
             }
         }
     }
 
-    picking?.let { which ->
-        val initial = if (which == "start") vm.windowStart else vm.windowEnd
-        val state = rememberTimePickerState(initialHour = initial / 60, initialMinute = initial % 60, is24Hour = true)
-        AlertDialog(
-            onDismissRequest = { picking = null },
-            confirmButton = {
-                TextButton(onClick = {
-                    val m = state.hour * 60 + state.minute
-                    if (which == "start") vm.windowStart = m else vm.windowEnd = m
-                    picking = null
-                }) { Text("OK") }
-            },
-            dismissButton = { TextButton(onClick = { picking = null }) { Text("Cancel") } },
-            text = { TimePicker(state = state) },
+    when (val p = picker) {
+        is Picker.Time -> TimeDialog(
+            initial = if (p.start) vm.windowStart else vm.windowEnd,
+            onDismiss = { picker = null },
+            onPick = { m -> if (p.start) vm.windowStart = m else vm.windowEnd = m; picker = null },
         )
+        Picker.Interval -> IntervalDialog(vm.intervalMinutes, onDismiss = { picker = null }) { vm.intervalMinutes = it; picker = null }
+        Picker.Snooze -> ChoiceDialog("Snooze", listOf(5, 10, 15, 30).map { it to formatInterval(it) }, vm.snoozeMinutes,
+            onDismiss = { picker = null }) { vm.snoozeMinutes = it; picker = null }
+        Picker.RingFor -> ChoiceDialog("Ring for", listOf(30, 60, 120, 300).map { it to ringLength(it) }, vm.ringSeconds,
+            onDismiss = { picker = null }) { vm.ringSeconds = it; picker = null }
+        Picker.Delete -> AlertDialog(
+            onDismissRequest = { picker = null },
+            title = { Text("Delete \"${vm.label}\"?") },
+            text = { Text("It stops ringing and can't be restored.") },
+            confirmButton = { TextButton(onClick = { picker = null; vm.delete(onClose) }) { Text("Delete", color = c.danger) } },
+            dismissButton = { TextButton(onClick = { picker = null }) { Text("Cancel") } },
+        )
+        null -> Unit
     }
+}
+
+@Composable
+private fun TopAction(label: String, color: androidx.compose.ui.graphics.Color, enabled: Boolean, onClick: () -> Unit) {
+    Box(
+        Modifier.heightIn(min = Spacing.minTouch).clickable(enabled = enabled, role = Role.Button, onClick = onClick)
+            .padding(horizontal = Spacing.m),
+        contentAlignment = Alignment.Center,
+    ) { Text(label, style = IntervalTheme.type.sheetTitle, color = color) }
 }
 
 @Composable
@@ -286,10 +333,124 @@ private fun Section(label: String, content: @Composable () -> Unit) {
 }
 
 @Composable
-private fun TimeBox(text: String, modifier: Modifier, onClick: () -> Unit) {
+private fun Hint(text: String, accent: Boolean = false) {
+    Text(
+        text,
+        style = IntervalTheme.type.meta.copy(lineHeight = 15.sp),
+        color = if (accent) IntervalTheme.colors.accent else IntervalTheme.colors.muted,
+    )
+}
+
+@Composable
+private fun TimeBox(time: String, badge: String?, modifier: Modifier, onClick: () -> Unit) {
     val c = IntervalTheme.colors
-    Column(modifier.clickable(role = Role.Button, onClick = onClick)) {
-        Text(text, style = IntervalTheme.type.countdown.copy(fontSize = IntervalTheme.type.screenTitle.fontSize * 1.5f), color = c.fg)
-        Box(Modifier.fillMaxWidth().heightIn(min = 2.dp, max = 2.dp).background(c.fg))
+    val t = IntervalTheme.type
+    Column(modifier.heightIn(min = Spacing.minTouch).clickable(role = Role.Button, onClick = onClick)) {
+        Text(
+            buildAnnotatedString {
+                append(time)
+                if (badge != null) {
+                    withStyle(SpanStyle(fontSize = 10.sp, color = c.accent, baselineShift = BaselineShift(1.2f))) { append(" $badge") }
+                }
+            },
+            style = t.countdown.copy(fontSize = 34.sp, lineHeight = 36.sp),
+            color = c.fg,
+        )
+        Box(Modifier.fillMaxWidth().height(2.dp).background(c.fg))
     }
+}
+
+@Composable
+private fun SettingRow(label: String, sub: String?, value: String, onClick: () -> Unit) {
+    val c = IntervalTheme.colors
+    val t = IntervalTheme.type
+    Row(
+        Modifier.fillMaxWidth().heightIn(min = Spacing.minTouch).clickable(role = Role.Button, onClick = onClick)
+            .padding(vertical = Spacing.m),
+        verticalAlignment = Alignment.CenterVertically,
+        horizontalArrangement = Arrangement.spacedBy(Spacing.m),
+    ) {
+        Column(Modifier.weight(1f)) {
+            Text(label, style = t.body.copy(fontSize = 14.sp), color = c.fg)
+            if (sub != null) Text(sub, style = t.meta, color = c.muted)
+        }
+        Text(value, style = t.reminderName, color = c.accent)
+    }
+}
+
+@OptIn(ExperimentalMaterial3Api::class)
+@Composable
+private fun TimeDialog(initial: Int, onDismiss: () -> Unit, onPick: (Int) -> Unit) {
+    val state = rememberTimePickerState(initialHour = initial / 60, initialMinute = initial % 60, is24Hour = true)
+    AlertDialog(
+        onDismissRequest = onDismiss,
+        confirmButton = { TextButton(onClick = { onPick(state.hour * 60 + state.minute) }) { Text("OK") } },
+        dismissButton = { TextButton(onClick = onDismiss) { Text("Cancel") } },
+        text = { TimePicker(state = state) },
+    )
+}
+
+@Composable
+private fun IntervalDialog(current: Int, onDismiss: () -> Unit, onPick: (Int) -> Unit) {
+    var text by remember { mutableStateOf(if (current in PRESETS) "" else current.toString()) }
+    val value = text.toIntOrNull()
+    val valid = value != null && value in 1..1440
+    AlertDialog(
+        onDismissRequest = onDismiss,
+        title = { Text("Repeat every") },
+        text = {
+            OutlinedTextField(
+                value = text,
+                onValueChange = { s -> text = s.filter(Char::isDigit).take(4) },
+                label = { Text("Minutes (1–1440)") },
+                supportingText = { if (valid) Text("Every ${formatInterval(value!!)}") },
+                keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Number),
+                singleLine = true,
+            )
+        },
+        confirmButton = { TextButton(enabled = valid, onClick = { onPick(value!!) }) { Text("OK") } },
+        dismissButton = { TextButton(onClick = onDismiss) { Text("Cancel") } },
+    )
+}
+
+@Composable
+private fun ChoiceDialog(title: String, options: List<Pair<Int, String>>, selected: Int, onDismiss: () -> Unit, onPick: (Int) -> Unit) {
+    AlertDialog(
+        onDismissRequest = onDismiss,
+        title = { Text(title) },
+        text = {
+            PillRow(options = options, isSelected = { it == selected }, onSelect = onPick)
+        },
+        confirmButton = { TextButton(onClick = onDismiss) { Text("Cancel") } },
+    )
+}
+
+private fun ringLength(seconds: Int) = if (seconds < 60) "$seconds s" else "${seconds / 60} min"
+
+private fun ringtoneType(style: RingStyle) =
+    if (style == RingStyle.ALARM) RingtoneManager.TYPE_ALARM else RingtoneManager.TYPE_NOTIFICATION
+
+private fun soundTitle(context: Context, uri: String?): String {
+    if (uri == null) return "Default"
+    return try {
+        RingtoneManager.getRingtone(context, uri.toUri())?.getTitle(context) ?: "Custom"
+    } catch (_: Exception) {
+        "Custom"
+    }
+}
+
+private fun Intent.parcelableUri(key: String): Uri? =
+    if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.TIRAMISU) getParcelableExtra(key, Uri::class.java)
+    else @Suppress("DEPRECATION") getParcelableExtra(key)
+
+/** "09:00, 10:00, 11:00, 12:00 …" for the fixed-schedule hint. */
+private fun fixedSlots(start: Int, end: Int, interval: Int): String {
+    val length = when {
+        end > start -> end - start
+        end < start -> end + 1440 - start
+        else -> 1440
+    }
+    val all = generateSequence(0) { it + interval }.takeWhile { it <= length }.take(5).toList()
+    val shown = all.take(4).joinToString(", ") { formatMinuteOfDay((start + it) % 1440) }
+    return if (all.size > 4) "$shown …" else shown
 }
