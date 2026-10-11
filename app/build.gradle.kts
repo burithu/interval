@@ -12,8 +12,9 @@ android {
         applicationId = "io.github.burithu.interval"
         minSdk = 26
         targetSdk = 37
-        versionCode = 1
-        versionName = "0.1.0"
+        // Bump both with every release; see CHANGELOG.md.
+        versionCode = 9
+        versionName = "0.9.0"
     }
 
     buildTypes {
