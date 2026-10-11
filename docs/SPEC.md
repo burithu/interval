@@ -66,7 +66,7 @@ System: Notification (Dismiss · Snooze) · Alarm screen (over lock screen)
 | 09 | Reminder editor | All fields, hint lines, "+1 DAY" for overnight, Ring for only when Alarm, Delete only when editing |
 | 10 | Alarm screen | Label, Dismiss, Snooze, draining ring-length bar |
 | 11 | Notification | Dismiss / Snooze actions; swipe = dismiss; missed one stays until replaced |
-| 12 | Settings | Reliability status, missed timeout, default snooze, theme (follows phone), About + event log |
+| 12 | Settings | Theme (System/Light/Dark, D31), reliability status, missed timeout, default snooze, event log, About. Opened from the ⚙ on Home |
 
 Mockups: https://claude.ai/artifact/H6wWtw87euJ4r6XuFwT8GR (style options: https://claude.ai/artifact/JanqQAXH9Czq8V4jcKratz)
 
@@ -240,3 +240,4 @@ Onboarding (M3) on Xiaomi must cover: Autostart, Battery "No restrictions", noti
 | D28 | Debug event log, last 200 events |
 | D29 | Home sorted by next ring, off at bottom |
 | D30 | setAlarmClock(); status-bar icon accepted |
+| D31 | In-app theme: System / Light / Dark in Settings, default System (overrides D16's no-toggle) |

@@ -3,7 +3,6 @@ package io.github.burithu.interval
 import android.os.Bundle
 import androidx.activity.ComponentActivity
 import androidx.activity.compose.setContent
-import androidx.activity.enableEdgeToEdge
 import androidx.compose.foundation.background
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.fillMaxSize
@@ -22,7 +21,10 @@ import androidx.navigation.compose.NavHost
 import androidx.navigation.compose.composable
 import androidx.navigation.compose.rememberNavController
 import androidx.navigation.navArgument
+import io.github.burithu.interval.data.AppSettings
+import io.github.burithu.interval.data.ThemeMode
 import io.github.burithu.interval.onboarding.SetupScreen
+import io.github.burithu.interval.ui.settings.SettingsScreen
 import io.github.burithu.interval.onboarding.SetupStage
 import io.github.burithu.interval.onboarding.WelcomeScreen
 import io.github.burithu.interval.ui.editor.EditorScreen
@@ -37,19 +39,18 @@ import kotlinx.coroutines.launch
 class MainActivity : ComponentActivity() {
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
-        enableEdgeToEdge()
         val container = (application as IntervalApp).container
         setContent {
-            IntervalTheme {
-                IntervalNav(container)
+            val settings by container.settings.settings.collectAsStateWithLifecycle(initialValue = null)
+            IntervalTheme(mode = settings?.themeMode ?: ThemeMode.SYSTEM) {
+                IntervalNav(container, settings)
             }
         }
     }
 }
 
 @Composable
-private fun IntervalNav(container: AppContainer) {
-    val settings by container.settings.settings.collectAsStateWithLifecycle(initialValue = null)
+private fun IntervalNav(container: AppContainer, settings: AppSettings?) {
     val loaded = settings ?: run {
         Box(Modifier.fillMaxSize().background(IntervalTheme.colors.bg))
         return
@@ -75,8 +76,16 @@ private fun IntervalNav(container: AppContainer) {
                 vm = vm,
                 onOpen = { id -> nav.navigate("editor/$id") },
                 onAdd = { nav.navigate("editor/0") },
-                onLog = { nav.navigate("log") },
+                onSettings = { nav.navigate("settings") },
                 onSetup = { nav.navigate("setup/permissions") },
+            )
+        }
+        composable("settings") {
+            SettingsScreen(
+                container = container,
+                onBack = { nav.popBackStack() },
+                onSetup = { nav.navigate("setup/permissions") },
+                onLog = { nav.navigate("log") },
             )
         }
         composable("editor/{id}", arguments = listOf(navArgument("id") { type = NavType.LongType })) {

@@ -12,7 +12,11 @@ import androidx.compose.foundation.layout.heightIn
 import androidx.compose.foundation.layout.navigationBarsPadding
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.shape.RoundedCornerShape
+import androidx.compose.foundation.layout.Column
+import androidx.compose.material3.AlertDialog
 import androidx.compose.material3.Text
+import androidx.compose.material3.TextButton
+import androidx.compose.ui.unit.sp
 import androidx.compose.runtime.Composable
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
@@ -84,4 +88,35 @@ fun <T> PillRow(options: List<Pair<T, String>>, isSelected: (T) -> Boolean, onSe
             }
         }
     }
+}
+
+/** Label, optional sub-text, cobalt value. Tapping opens a picker (SettingRow in SPEC §4). */
+@Composable
+fun SettingRow(label: String, sub: String?, value: String, onClick: () -> Unit) {
+    val c = IntervalTheme.colors
+    val t = IntervalTheme.type
+    Row(
+        Modifier.fillMaxWidth().heightIn(min = Spacing.minTouch).clickable(role = Role.Button, onClick = onClick)
+            .padding(vertical = Spacing.m),
+        verticalAlignment = Alignment.CenterVertically,
+        horizontalArrangement = Arrangement.spacedBy(Spacing.m),
+    ) {
+        Column(Modifier.weight(1f)) {
+            Text(label, style = t.body.copy(fontSize = 14.sp), color = c.fg)
+            if (sub != null) Text(sub, style = t.meta, color = c.muted)
+        }
+        Text(value, style = t.reminderName, color = c.accent)
+    }
+}
+
+@Composable
+fun ChoiceDialog(title: String, options: List<Pair<Int, String>>, selected: Int, onDismiss: () -> Unit, onPick: (Int) -> Unit) {
+    AlertDialog(
+        onDismissRequest = onDismiss,
+        title = { Text(title) },
+        text = {
+            PillRow(options = options, isSelected = { it == selected }, onSelect = onPick)
+        },
+        confirmButton = { TextButton(onClick = onDismiss) { Text("Cancel") } },
+    )
 }

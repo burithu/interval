@@ -67,7 +67,9 @@ import io.github.burithu.interval.data.RingStyle
 import io.github.burithu.interval.data.TimingMode
 import io.github.burithu.interval.data.db.toDomain
 import io.github.burithu.interval.ui.FieldLabel
+import io.github.burithu.interval.ui.ChoiceDialog
 import io.github.burithu.interval.ui.PillRow
+import io.github.burithu.interval.ui.SettingRow
 import io.github.burithu.interval.ui.Segmented
 import io.github.burithu.interval.ui.formatInterval
 import io.github.burithu.interval.ui.formatMinuteOfDay
@@ -360,24 +362,6 @@ private fun TimeBox(time: String, badge: String?, modifier: Modifier, onClick: (
     }
 }
 
-@Composable
-private fun SettingRow(label: String, sub: String?, value: String, onClick: () -> Unit) {
-    val c = IntervalTheme.colors
-    val t = IntervalTheme.type
-    Row(
-        Modifier.fillMaxWidth().heightIn(min = Spacing.minTouch).clickable(role = Role.Button, onClick = onClick)
-            .padding(vertical = Spacing.m),
-        verticalAlignment = Alignment.CenterVertically,
-        horizontalArrangement = Arrangement.spacedBy(Spacing.m),
-    ) {
-        Column(Modifier.weight(1f)) {
-            Text(label, style = t.body.copy(fontSize = 14.sp), color = c.fg)
-            if (sub != null) Text(sub, style = t.meta, color = c.muted)
-        }
-        Text(value, style = t.reminderName, color = c.accent)
-    }
-}
-
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
 private fun TimeDialog(initial: Int, onDismiss: () -> Unit, onPick: (Int) -> Unit) {
@@ -410,18 +394,6 @@ private fun IntervalDialog(current: Int, onDismiss: () -> Unit, onPick: (Int) ->
         },
         confirmButton = { TextButton(enabled = valid, onClick = { onPick(value!!) }) { Text("OK") } },
         dismissButton = { TextButton(onClick = onDismiss) { Text("Cancel") } },
-    )
-}
-
-@Composable
-private fun ChoiceDialog(title: String, options: List<Pair<Int, String>>, selected: Int, onDismiss: () -> Unit, onPick: (Int) -> Unit) {
-    AlertDialog(
-        onDismissRequest = onDismiss,
-        title = { Text(title) },
-        text = {
-            PillRow(options = options, isSelected = { it == selected }, onSelect = onPick)
-        },
-        confirmButton = { TextButton(onClick = onDismiss) { Text("Cancel") } },
     )
 }
 

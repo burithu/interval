@@ -6,6 +6,7 @@ import androidx.compose.animation.slideInVertically
 import androidx.compose.animation.slideOutVertically
 import androidx.compose.animation.fadeIn
 import androidx.compose.animation.fadeOut
+import androidx.compose.foundation.Canvas
 import androidx.compose.foundation.background
 import androidx.compose.foundation.border
 import androidx.compose.foundation.clickable
@@ -19,6 +20,7 @@ import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.heightIn
 import androidx.compose.foundation.layout.padding
+import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.layout.statusBarsPadding
 import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.items
@@ -35,6 +37,7 @@ import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.platform.LocalContext
+import androidx.compose.ui.graphics.drawscope.Stroke
 import androidx.compose.ui.semantics.Role
 import androidx.compose.ui.semantics.contentDescription
 import androidx.compose.ui.semantics.semantics
@@ -118,7 +121,7 @@ class HomeViewModel(private val c: AppContainer) : ViewModel() {
 }
 
 @Composable
-fun HomeScreen(vm: HomeViewModel, onOpen: (Long) -> Unit, onAdd: () -> Unit, onLog: () -> Unit, onSetup: () -> Unit) {
+fun HomeScreen(vm: HomeViewModel, onOpen: (Long) -> Unit, onAdd: () -> Unit, onSettings: () -> Unit, onSetup: () -> Unit) {
     val c = IntervalTheme.colors
     val t = IntervalTheme.type
     val rows by vm.rows.collectAsStateWithLifecycle()
@@ -141,8 +144,7 @@ fun HomeScreen(vm: HomeViewModel, onOpen: (Long) -> Unit, onAdd: () -> Unit, onL
             item(key = "header") {
                 Row(Modifier.fillMaxWidth().heightIn(min = 56.dp), verticalAlignment = Alignment.CenterVertically) {
                     Text("REMINDERS", style = t.screenTitle, color = c.fg, modifier = Modifier.weight(1f))
-                    HeaderLink("SETUP", onSetup)
-                    HeaderLink("LOG", onLog)
+                    SettingsButton(onSettings)
                 }
             }
             item(key = "banner") { ReliabilityBanner(settings.confirmedSteps, onSetup) }
@@ -163,12 +165,21 @@ fun HomeScreen(vm: HomeViewModel, onOpen: (Long) -> Unit, onAdd: () -> Unit, onL
     }
 }
 
+/** Gear from the mockup: a ring with a solid centre, drawn so no icon library is needed. */
 @Composable
-private fun HeaderLink(label: String, onClick: () -> Unit) {
+private fun SettingsButton(onClick: () -> Unit) {
+    val fg = IntervalTheme.colors.fg
     Box(
-        Modifier.heightIn(min = Spacing.minTouch).clickable(role = Role.Button, onClick = onClick).padding(horizontal = Spacing.m),
+        Modifier.size(Spacing.minTouch).clickable(role = Role.Button, onClickLabel = "Settings", onClick = onClick)
+            .semantics { contentDescription = "Settings" },
         contentAlignment = Alignment.Center,
-    ) { Text(label, style = IntervalTheme.type.fieldLabel, color = IntervalTheme.colors.muted) }
+    ) {
+        Canvas(Modifier.size(20.dp)) {
+            val stroke = 2.5.dp.toPx()
+            drawCircle(fg, radius = size.minDimension / 2 - stroke / 2, style = Stroke(width = stroke))
+            drawCircle(fg, radius = size.minDimension / 2 - stroke * 2)
+        }
+    }
 }
 
 /** Screen 05 hero: soonest ring across all reminders, or what to do when there is none. */

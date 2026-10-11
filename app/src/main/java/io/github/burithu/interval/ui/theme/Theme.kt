@@ -1,6 +1,12 @@
 package io.github.burithu.interval.ui.theme
 
+import androidx.activity.ComponentActivity
+import androidx.activity.SystemBarStyle
+import androidx.activity.compose.LocalActivity
+import androidx.activity.enableEdgeToEdge
 import androidx.compose.foundation.isSystemInDarkTheme
+import androidx.compose.runtime.DisposableEffect
+import io.github.burithu.interval.data.ThemeMode
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.darkColorScheme
 import androidx.compose.material3.lightColorScheme
@@ -27,7 +33,28 @@ object IntervalTheme {
         @Composable @ReadOnlyComposable get() = LocalIntervalType.current
 }
 
-/** Theme follows the phone (D16). Fixed brand colors, no dynamic color (D26). */
+/**
+ * Applies the user's theme choice (D31): SYSTEM follows the phone (D16). Also flips the
+ * status and navigation bar icons, which otherwise follow the phone setting.
+ */
+@Composable
+fun IntervalTheme(mode: ThemeMode, content: @Composable () -> Unit) {
+    val dark = when (mode) {
+        ThemeMode.SYSTEM -> isSystemInDarkTheme()
+        ThemeMode.LIGHT -> false
+        ThemeMode.DARK -> true
+    }
+    val activity = LocalActivity.current as? ComponentActivity
+    DisposableEffect(dark, activity) {
+        val clear = android.graphics.Color.TRANSPARENT
+        val style = if (dark) SystemBarStyle.dark(clear) else SystemBarStyle.light(clear, clear)
+        activity?.enableEdgeToEdge(statusBarStyle = style, navigationBarStyle = style)
+        onDispose { }
+    }
+    IntervalTheme(dark = dark, content = content)
+}
+
+/** Fixed brand colors, no dynamic color (D26). */
 @Composable
 fun IntervalTheme(
     dark: Boolean = isSystemInDarkTheme(),

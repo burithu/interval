@@ -37,6 +37,7 @@ import androidx.compose.ui.unit.sp
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import io.github.burithu.interval.AppContainer
 import io.github.burithu.interval.IntervalApp
+import io.github.burithu.interval.data.ThemeMode
 import io.github.burithu.interval.scheduling.RingAction
 import io.github.burithu.interval.ui.formatClock
 import io.github.burithu.interval.ui.formatInterval
@@ -68,7 +69,8 @@ class AlarmActivity : ComponentActivity() {
         reminderId = intent.getLongExtra(EXTRA_ID, -1)
         val container = (application as IntervalApp).container
         setContent {
-            IntervalTheme {
+            val settings by container.settings.settings.collectAsStateWithLifecycle(initialValue = null)
+            IntervalTheme(mode = settings?.themeMode ?: ThemeMode.SYSTEM) {
                 AlarmScreen(container, reminderId, onDone = ::finish)
             }
         }
