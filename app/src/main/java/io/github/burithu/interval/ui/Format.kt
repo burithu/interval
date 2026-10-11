@@ -58,10 +58,13 @@ fun formatDays(days: Days): String {
     }
 }
 
-/** "Every 1 h · 09:00–18:00 · Mon–Fri · Restart" */
+/**
+ * "Every 1 h · 09:00–18:00 · Mon–Fri · Restart". When it wraps, it breaks only after a "· ":
+ * spaces inside an item and before each dot don't break.
+ */
 fun reminderMeta(r: Reminder): String = listOf(
     "Every ${formatInterval(r.intervalMinutes)}",
     formatWindow(r.windowStart, r.windowEnd),
     formatDays(r.days),
     if (r.timingMode == TimingMode.RESTART) "Restart" else "Fixed",
-).joinToString(" · ")
+).joinToString(" · ") { it.replace(' ', ' ').replace("–", "⁠–⁠") }
