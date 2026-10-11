@@ -112,9 +112,17 @@ class RingService : Service() {
         val withVibration = r.vibrate && (alarm || mode != AudioManager.RINGER_MODE_SILENT)
         val maxLength = if (alarm) Duration.ofSeconds(r.ringSeconds.toLong()) else CHIME_MAX
 
-        wakeLock = getSystemService(PowerManager::class.java)
-            .newWakeLock(PowerManager.PARTIAL_WAKE_LOCK, "interval:ring")
+        val power = getSystemService(PowerManager::class.java)
+        wakeLock = power.newWakeLock(PowerManager.PARTIAL_WAKE_LOCK, "interval:ring")
             .apply { acquire(maxLength.plusSeconds(5).toMillis()) }
+        if (alarm) {
+            // Backup for the alarm screen's turnScreenOn: light the display so the alarm is seen.
+            @Suppress("DEPRECATION")
+            power.newWakeLock(
+                PowerManager.SCREEN_BRIGHT_WAKE_LOCK or PowerManager.ACQUIRE_CAUSES_WAKEUP,
+                "interval:alarm_screen",
+            ).acquire(SCREEN_WAKE.toMillis())
+        }
         if (withSound) startSound(r.soundUri, alarm, r.id)
         if (withVibration) vibrate(alarm)
 
@@ -211,5 +219,6 @@ class RingService : Service() {
         const val EXTRA_ID = "reminder_id"
         private val CHIME_MAX: Duration = Duration.ofSeconds(10)
         private val VIBRATE_ONLY: Duration = Duration.ofMillis(1500)
+        private val SCREEN_WAKE: Duration = Duration.ofSeconds(10)
     }
 }
