@@ -7,17 +7,17 @@ Strategy: riskiest first. Scheduling logic, then real rings on the Xiaomi 13, th
 ## Milestones
 
 ### M0 — Project setup
-- [ ] Install Android Studio (bundled JBR 21 JDK, Android SDK)
-- [ ] Create project: Kotlin, Compose, min SDK 26, Gradle Kotlin DSL + version catalog
-- [ ] `git init`, `.gitignore`, README, GitHub repository
-- [ ] GitHub Actions: build + unit tests on push
-- [ ] Packages: `ui/ data/ scheduling/ ringing/ onboarding/`
-- [ ] Bundle Archivo variable font; theme tokens (light + dark)
+- [x] Install Android Studio (bundled JBR 21 JDK, Android SDK)
+- [x] Create project: Kotlin, Compose, min SDK 26, Gradle Kotlin DSL + version catalog
+- [x] `git init`, `.gitignore`, README, GitHub repository
+- [x] GitHub Actions: build + unit tests on push
+- [x] Packages: `ui/ data/ scheduling/ ringing/ onboarding/`
+- [x] Bundle Archivo variable font; theme tokens (light + dark)
 
 ### M1 — Scheduling core (no UI)
-- [ ] Models: `Reminder`, `ReminderState`, enums
-- [ ] `nextRing()` pure function implementing SPEC §3
-- [ ] Unit tests: both modes, overnight, 24 h, days, snooze vs grid, missed, pause/resume, DST and time-zone changes
+- [x] Models: `Reminder`, `ReminderState`, enums
+- [x] `nextRing()` pure function implementing SPEC §3
+- [x] Unit tests: both modes, overnight, 24 h, days, snooze vs grid, missed, pause/resume, DST and time-zone changes
 
 Done when: all rules pass their tests.
 
