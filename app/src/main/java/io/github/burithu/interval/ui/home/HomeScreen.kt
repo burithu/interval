@@ -118,6 +118,14 @@ class HomeViewModel(private val c: AppContainer) : ViewModel() {
     fun ensureScheduled() {
         viewModelScope.launch { c.engine.ensureScheduled() }
     }
+
+    fun pause(until: Instant) {
+        viewModelScope.launch { c.engine.pauseUntil(until) }
+    }
+
+    fun resume() {
+        viewModelScope.launch { c.engine.resume() }
+    }
 }
 
 @Composable
@@ -136,6 +144,9 @@ fun HomeScreen(vm: HomeViewModel, onOpen: (Long) -> Unit, onAdd: () -> Unit, onS
         }
     }
 
+    val pausedUntil = settings.pausedUntil?.takeIf { it > now }
+    var showPause by remember { mutableStateOf(false) }
+
     Column(Modifier.fillMaxSize().background(c.bg)) {
         LazyColumn(
             Modifier.weight(1f).statusBarsPadding(),
@@ -144,11 +155,15 @@ fun HomeScreen(vm: HomeViewModel, onOpen: (Long) -> Unit, onAdd: () -> Unit, onS
             item(key = "header") {
                 Row(Modifier.fillMaxWidth().heightIn(min = 56.dp), verticalAlignment = Alignment.CenterVertically) {
                     Text("REMINDERS", style = t.screenTitle, color = c.fg, modifier = Modifier.weight(1f))
+                    if (rows.isNotEmpty()) PauseChip(paused = pausedUntil != null) { showPause = true }
                     SettingsButton(onSettings)
                 }
             }
             item(key = "banner") { ReliabilityBanner(settings.confirmedSteps, onSetup) }
-            item(key = "hero") { CountdownHero(rows, now, zone) }
+            item(key = "hero") {
+                if (pausedUntil != null) PausedHero(pausedUntil, now, zone, onResume = vm::resume)
+                else CountdownHero(rows, now, zone)
+            }
             if (rows.isEmpty()) {
                 items(STARTERS, key = { "starter-${it.label}" }) { starter ->
                     StarterRow(starter, onAdd = { vm.addStarter(starter) })
@@ -156,12 +171,23 @@ fun HomeScreen(vm: HomeViewModel, onOpen: (Long) -> Unit, onAdd: () -> Unit, onS
                 }
             } else {
                 items(rows, key = { it.reminder.id }) { row ->
-                    ReminderRow(row, now, zone, onClick = { onOpen(row.reminder.id) }, onToggle = { vm.setEnabled(row.reminder.id, it) })
+                    ReminderRow(row, now, zone, paused = pausedUntil != null, onClick = { onOpen(row.reminder.id) }, onToggle = { vm.setEnabled(row.reminder.id, it) })
                     HorizontalDivider(color = c.line)
                 }
             }
         }
         BottomBar("+ Add reminder", onAdd)
+    }
+
+    if (showPause) {
+        PauseSheet(
+            now = now,
+            zone = zone,
+            pausedUntil = pausedUntil,
+            onPause = { vm.pause(it); showPause = false },
+            onResume = { vm.resume(); showPause = false },
+            onDismiss = { showPause = false },
+        )
     }
 }
 
@@ -276,12 +302,13 @@ private fun countdownText(left: Duration, unitColor: androidx.compose.ui.graphic
 }
 
 @Composable
-private fun ReminderRow(row: HomeRow, now: Instant, zone: ZoneId, onClick: () -> Unit, onToggle: (Boolean) -> Unit) {
+private fun ReminderRow(row: HomeRow, now: Instant, zone: ZoneId, paused: Boolean, onClick: () -> Unit, onToggle: (Boolean) -> Unit) {
     val c = IntervalTheme.colors
     val t = IntervalTheme.type
     val r = row.reminder
     val next = when {
         !r.enabled -> "Off"
+        paused -> "Paused"
         row.state?.phase == Phase.RINGING -> "Ringing"
         row.state?.nextRingAt != null -> formatNext(row.state.nextRingAt, now, zone)
         else -> "—"
@@ -295,7 +322,7 @@ private fun ReminderRow(row: HomeRow, now: Instant, zone: ZoneId, onClick: () ->
             Text(r.label, style = t.reminderName, color = if (r.enabled) c.fg else c.muted, maxLines = 1, overflow = TextOverflow.Ellipsis)
             Text(reminderMeta(r), style = t.meta, color = c.muted, maxLines = 1, overflow = TextOverflow.Ellipsis)
         }
-        Text(next, style = t.nextIn, color = if (r.enabled) c.accent else c.muted)
+        Text(next, style = t.nextIn, color = if (r.enabled && !paused) c.accent else c.muted)
         Switch(checked = r.enabled, onCheckedChange = onToggle)
     }
 }

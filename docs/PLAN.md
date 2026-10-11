@@ -46,9 +46,9 @@ Done when: a reminder created on the Xiaomi 13 rings, dismiss restarts it, and i
 - [x] Dark theme, countdown animation, reduced motion
 
 ### M6 — Pause, Settings, log viewer
-- [ ] Pause sheet + paused Home (06, 08)
-- [ ] Settings (12)
-- [ ] Event log viewer
+- [x] Pause sheet + paused Home (06, 08)
+- [x] Settings (12)
+- [x] Event log viewer
 
 ### M7 — Hardening & v1.0
 - [ ] Full Xiaomi checklist, twice, on separate days

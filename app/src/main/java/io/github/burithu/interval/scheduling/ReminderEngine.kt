@@ -167,6 +167,33 @@ class ReminderEngine(
     }
 
     /**
+     * Pause all (D10). Silences any ring in progress and moves every reminder's next ring to
+     * the pause end: restart timers one interval after it, fixed schedules to the next slot.
+     */
+    suspend fun pauseUntil(until: Instant) = mutex.withLock {
+        settings.setPausedUntil(until)
+        for (r in reminders.getAll().map { it.toDomain() }) {
+            clearRinging(r.id)
+            val next = Scheduler.nextRing(r, ScheduleEvent.Resumed(until), zone(), until)
+            states.upsert(ReminderStateEntity(r.id, Phase.WAITING, next, null))
+            schedule(r, next)
+        }
+        record(null, EventType.PAUSED, scheduledFor = until)
+    }
+
+    /** Resume now (Flow D): restart timers count from now; fixed schedules go to the next slot. */
+    suspend fun resume() = mutex.withLock {
+        settings.setPausedUntil(null)
+        val now = clock()
+        for (r in reminders.getAll().map { it.toDomain() }) {
+            val next = Scheduler.nextRing(r, ScheduleEvent.Resumed(now), zone())
+            states.upsert(ReminderStateEntity(r.id, Phase.WAITING, next, null))
+            schedule(r, next)
+        }
+        record(null, EventType.RESUMED)
+    }
+
+    /**
      * Called when the app opens. Re-registers stored alarms without changing any times,
      * so it is safe even at the moment a reminder is due.
      */

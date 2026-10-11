@@ -48,7 +48,7 @@ data class ReminderStateEntity(
     val ringingSince: Instant?,
 )
 
-enum class EventType { SAVED, DELETED, ENABLED, DISABLED, SCHEDULED, RANG, DISMISSED, SWIPED, SNOOZED, MISSED, RESCHEDULED_ALL, NO_EXACT_ALARM }
+enum class EventType { SAVED, DELETED, ENABLED, DISABLED, SCHEDULED, RANG, DISMISSED, SWIPED, SNOOZED, MISSED, RESCHEDULED_ALL, NO_EXACT_ALARM, PAUSED, RESUMED }
 
 /** Debug event log, capped at [EventLogDao.MAX_ROWS] rows (D28). */
 @Entity(tableName = "event_log", indices = [Index("at")])
