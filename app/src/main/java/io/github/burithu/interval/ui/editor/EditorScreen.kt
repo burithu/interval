@@ -50,10 +50,6 @@ import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.semantics.Role
 import androidx.compose.ui.text.input.KeyboardCapitalization
 import androidx.compose.ui.text.input.KeyboardType
-import androidx.compose.ui.text.style.BaselineShift
-import androidx.compose.ui.text.SpanStyle
-import androidx.compose.ui.text.buildAnnotatedString
-import androidx.compose.ui.text.withStyle
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import androidx.core.net.toUri
@@ -347,17 +343,15 @@ private fun Hint(text: String, accent: Boolean = false) {
 private fun TimeBox(time: String, badge: String?, modifier: Modifier, onClick: () -> Unit) {
     val c = IntervalTheme.colors
     val t = IntervalTheme.type
+    // The badge sits beside the time, top-aligned, so it never changes the row height:
+    // both TimeBoxes keep the same baseline and their underlines line up.
     Column(modifier.heightIn(min = Spacing.minTouch).clickable(role = Role.Button, onClick = onClick)) {
-        Text(
-            buildAnnotatedString {
-                append(time)
-                if (badge != null) {
-                    withStyle(SpanStyle(fontSize = 10.sp, color = c.accent, baselineShift = BaselineShift(1.2f))) { append(" $badge") }
-                }
-            },
-            style = t.countdown.copy(fontSize = 34.sp, lineHeight = 36.sp),
-            color = c.fg,
-        )
+        Row(verticalAlignment = Alignment.Top, horizontalArrangement = Arrangement.spacedBy(Spacing.xs)) {
+            Text(time, style = t.countdown.copy(fontSize = 34.sp, lineHeight = 36.sp), color = c.fg)
+            if (badge != null) {
+                Text(badge, style = t.fieldLabel, color = c.accent, modifier = Modifier.padding(top = Spacing.xs))
+            }
+        }
         Box(Modifier.fillMaxWidth().height(2.dp).background(c.fg))
     }
 }
