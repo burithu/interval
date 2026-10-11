@@ -1,12 +1,10 @@
 package io.github.burithu.interval.ui.log
 
 import androidx.compose.foundation.background
-import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
-import androidx.compose.foundation.layout.heightIn
 import androidx.compose.foundation.layout.navigationBarsPadding
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.statusBarsPadding
@@ -16,15 +14,14 @@ import androidx.compose.material3.HorizontalDivider
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.getValue
-import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
-import androidx.compose.ui.semantics.Role
-import androidx.compose.ui.unit.dp
 import androidx.lifecycle.ViewModel
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import androidx.lifecycle.viewModelScope
 import io.github.burithu.interval.AppContainer
 import io.github.burithu.interval.data.db.EventLogEntity
+import io.github.burithu.interval.ui.Glyph
+import io.github.burithu.interval.ui.TopBar
 import io.github.burithu.interval.ui.theme.IntervalTheme
 import io.github.burithu.interval.ui.theme.Spacing
 import kotlinx.coroutines.flow.SharingStarted
@@ -56,16 +53,13 @@ fun LogScreen(vm: LogViewModel, onBack: () -> Unit) {
     val rows by vm.rows.collectAsStateWithLifecycle()
     val zone = ZoneId.systemDefault()
     Column(Modifier.fillMaxSize().background(c.bg).statusBarsPadding().navigationBarsPadding()) {
-        Row(Modifier.fillMaxWidth().heightIn(min = 56.dp).padding(horizontal = Spacing.s), verticalAlignment = Alignment.CenterVertically) {
-            Text("←", style = t.screenTitle, color = c.fg, modifier = Modifier.clickable(role = Role.Button, onClick = onBack).padding(Spacing.m))
-            Text("EVENT LOG", style = t.sheetTitle, color = c.fg)
-        }
+        TopBar("EVENT LOG", Glyph.BACK, "Back", onBack)
         LazyColumn(Modifier.padding(horizontal = Spacing.screen)) {
             items(rows, key = { it.first.id }) { (e, label) ->
                 Column(Modifier.fillMaxWidth().padding(vertical = Spacing.s)) {
                     Row {
                         Text(stamp.format(e.at.atZone(zone)), style = t.meta, color = c.muted, modifier = Modifier.weight(1f))
-                        Text(e.type.name, style = t.fieldLabel, color = c.accent)
+                        Text(e.type.name.replace('_', ' '), style = t.fieldLabel, color = c.accent)
                     }
                     val parts = listOfNotNull(
                         label ?: e.reminderId?.let { "#$it" },

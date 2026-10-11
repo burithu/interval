@@ -112,21 +112,29 @@ No dynamic (wallpaper) color. Add bar inverts in dark.
 
 **Type** — Archivo variable (OFL), bundled.
 
-| Role | sp | Weight | Width |
-|---|---|---|---|
-| Countdown | 64 (cap 80 at large font scale) | 800 | 70% |
-| Alarm label | 40 | 800 | 112%, uppercase |
-| Screen title | 20 | 800 | 112%, uppercase |
-| Sheet title | 15 | 800 | 112%, uppercase |
-| Reminder name | 14 | 700 | 105% |
-| Body | 13 | 400–600 | 100% |
-| Next-in time | 15 | 800 | 80% |
-| Meta / hint | 11 | 400 | 100% |
-| Field label | 10 | 700 | 100%, uppercase, +0.08em |
+| Token | sp | Weight | Width | Used for |
+|---|---|---|---|---|
+| display | 84 / lh 76 | 800 | 70% | Welcome headline |
+| countdown | 64 / lh 61 (units 22, 600, 100%) | 800 | 70% | Home hero |
+| alarmLabel | 48 / lh 46 | 800 | 112%, uppercase | Alarm screen label |
+| time | 34 / lh 36 | 800 | 70% | Time window, alarm clock |
+| numeral | 22 | 800 | 80% | Setup step numbers |
+| screenTitle | 20 | 800 | 112%, uppercase | Home title, setup titles, Dismiss |
+| title | 18 | 700 | 105% | Hero name, label input |
+| sheetTitle | 15 | 800 | 112%, uppercase | Sub-screen bars, sheets, wordmark |
+| nextIn | 15 | 800 | 80% | Next ring time on rows |
+| reminderName | 14 | 700 | 105% | Row names, segmented options |
+| body | 14 / lh 20 | 400 | 100% | Setting labels, pills, paragraphs |
+| meta | 12 / lh 16 | 400 | 100% | Row details, hints |
+| fieldLabel | 11 | 700 | 100%, uppercase, +0.08em | Section labels, chips, small buttons |
 
-**Spacing & shape.** 4dp grid; 20dp screen margins; 12dp row padding; 48dp min touch targets. Square corners except pills, chips, switches. Rules: 2dp heavy (hero, inputs), 1.5dp outlines, 1dp hairlines.
+Screens use these tokens as they are, with no inline size overrides. Material's own text (dialogs, time picker) is mapped to Archivo, and its shapes are square.
 
-**Components.** CountdownHero, ReminderRow, AddBar, Chip (filled/outline), OptionPill, Segmented, DayPicker, TimeWindow, SettingRow, Banner, Sheet, AlarmActions.
+**Spacing & shape.** 4dp grid: 2 (title-to-meta only), 4, 8, 12, 16, 20 (screen margin), 24 (between sections). Square corners except pills, chips, switches. Strokes: 2dp rules (hero, inputs), 1.5dp control outlines, 1dp hairlines, 4dp alarm progress.
+
+**Sizes.** 48dp minimum touch target everywhere (40dp controls get a 48dp hit area). Chip 32 · small control 40 · control 48 · single-line row 56 · two-line row 64 · alarm Dismiss 72 · icon 22.
+
+**Components.** CountdownHero, ReminderRow (meta wraps to 2 lines), AddBar, TopBar, ListRow, SmallButton, Chip (outline at rest, filled while paused), OptionPill, Segmented, DayPicker, TimeWindow, SettingRow, Banner, Sheet, AlarmActions. Icons (gear, back, close, arrow) are drawn as 2dp line glyphs, not font characters.
 
 **Motion.** Countdown digit slide (~200ms), sheet slide. Off when "Remove animations" is on.
 
@@ -241,3 +249,4 @@ Onboarding (M3) on Xiaomi must cover: Autostart, Battery "No restrictions", noti
 | D29 | Home sorted by next ring, off at bottom |
 | D30 | setAlarmClock(); status-bar icon accepted |
 | D31 | In-app theme: System / Light / Dark in Settings, default System (overrides D16's no-toggle) |
+| D32 | UI streamline: 11-size type scale, minimum 11sp; shared TopBar/ListRow/SmallButton; drawn icons; keep the filled Add bar; row meta wraps to 2 lines; Pause chip outlined at rest, filled while paused |

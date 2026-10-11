@@ -32,8 +32,6 @@ import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.semantics.Role
-import androidx.compose.ui.unit.dp
-import androidx.compose.ui.unit.sp
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import io.github.burithu.interval.AppContainer
 import io.github.burithu.interval.IntervalApp
@@ -42,7 +40,9 @@ import io.github.burithu.interval.scheduling.RingAction
 import io.github.burithu.interval.ui.formatClock
 import io.github.burithu.interval.ui.formatInterval
 import io.github.burithu.interval.ui.theme.IntervalTheme
+import io.github.burithu.interval.ui.theme.Sizes
 import io.github.burithu.interval.ui.theme.Spacing
+import io.github.burithu.interval.ui.theme.Strokes
 import kotlinx.coroutines.delay
 import kotlinx.coroutines.launch
 import java.time.Duration
@@ -141,25 +141,25 @@ private fun AlarmScreen(container: AppContainer, id: Long, onDone: () -> Unit) {
     ) {
         Column {
             Text("INTERVAL · ALARM", style = t.fieldLabel, color = c.muted)
-            Text(formatClock(now, zone), style = t.countdown.copy(fontSize = 44.sp), color = c.fg)
+            Text(formatClock(now, zone), style = t.time, color = c.fg)
         }
         Column(verticalArrangement = Arrangement.spacedBy(Spacing.m)) {
-            Text(r.label.uppercase(), style = t.alarmLabel.copy(fontSize = 48.sp, lineHeight = 46.sp), color = c.fg)
+            Text(r.label.uppercase(), style = t.alarmLabel, color = c.fg)
             Text("Every ${formatInterval(r.intervalMinutes)}", style = t.body, color = c.muted)
-            Box(Modifier.fillMaxWidth().height(4.dp).background(c.track)) {
-                Box(Modifier.fillMaxWidth(left.toFloat() / total).height(4.dp).background(c.accent))
+            Box(Modifier.fillMaxWidth().height(Strokes.progress).background(c.track)) {
+                Box(Modifier.fillMaxWidth(left.toFloat() / total).height(Strokes.progress).background(c.accent))
             }
             val s = (left + 999) / 1000
             Text("Stops in %d:%02d and counts as missed".format(s / 60, s % 60), style = t.meta, color = c.muted)
         }
         Column(verticalArrangement = Arrangement.spacedBy(Spacing.m)) {
             Box(
-                Modifier.fillMaxWidth().heightIn(min = 72.dp).background(c.accent)
+                Modifier.fillMaxWidth().heightIn(min = Sizes.alarmPrimary).background(c.accent)
                     .clickable(role = Role.Button) { act(RingAction.DISMISS) },
                 contentAlignment = Alignment.Center,
             ) { Text("DISMISS", style = t.screenTitle, color = c.onAccent) }
             Box(
-                Modifier.fillMaxWidth().heightIn(min = 56.dp).border(2.dp, c.fg)
+                Modifier.fillMaxWidth().heightIn(min = Sizes.rowSingle).border(Strokes.control, c.fg)
                     .clickable(role = Role.Button) { act(RingAction.SNOOZE) },
                 contentAlignment = Alignment.Center,
             ) { Text("SNOOZE ${formatInterval(r.snoozeMinutes).uppercase()}", style = t.sheetTitle, color = c.fg) }

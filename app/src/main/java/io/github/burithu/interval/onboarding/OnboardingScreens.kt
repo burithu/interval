@@ -4,15 +4,12 @@ import android.os.Build
 import androidx.activity.compose.rememberLauncherForActivityResult
 import androidx.activity.result.contract.ActivityResultContracts
 import androidx.compose.foundation.background
-import androidx.compose.foundation.border
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.Arrangement
-import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
-import androidx.compose.foundation.layout.heightIn
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.statusBarsPadding
 import androidx.compose.foundation.layout.width
@@ -38,12 +35,12 @@ import androidx.compose.ui.text.buildAnnotatedString
 import androidx.compose.ui.text.style.TextDecoration
 import androidx.compose.ui.text.withStyle
 import androidx.compose.ui.unit.dp
-import androidx.compose.ui.unit.sp
 import androidx.lifecycle.compose.LifecycleResumeEffect
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import io.github.burithu.interval.AppContainer
 import io.github.burithu.interval.data.AppSettings
 import io.github.burithu.interval.ui.BottomBar
+import io.github.burithu.interval.ui.SmallButton
 import io.github.burithu.interval.ui.theme.IntervalTheme
 import io.github.burithu.interval.ui.theme.Spacing
 import kotlinx.coroutines.launch
@@ -58,19 +55,19 @@ fun WelcomeScreen(onStart: () -> Unit) {
             Modifier.weight(1f).statusBarsPadding().padding(horizontal = Spacing.screen),
             verticalArrangement = Arrangement.spacedBy(Spacing.l, Alignment.CenterVertically),
         ) {
-            Text("INTERVAL", style = t.fieldLabel.copy(fontSize = 13.sp, letterSpacing = t.fieldLabel.letterSpacing * 1.8f), color = c.fg)
+            Text("INTERVAL", style = t.sheetTitle, color = c.fg)
             Text(
                 buildAnnotatedString {
                     append("Get up.\n")
                     withStyle(SpanStyle(color = c.accent)) { append("Every") }
                     append("\nhour.")
                 },
-                style = t.countdown.copy(fontSize = 84.sp, lineHeight = 76.sp),
+                style = t.display,
                 color = c.fg,
             )
             Text(
                 "Repeating reminders that restart themselves. For water, walks, stretches and food.",
-                style = t.body.copy(fontSize = 15.sp, lineHeight = 21.sp),
+                style = t.body,
                 color = c.muted,
                 modifier = Modifier.width(300.dp),
             )
@@ -170,32 +167,23 @@ private fun StepRow(number: Int, step: SetupStep, onAction: () -> Unit, onConfir
     val c = IntervalTheme.colors
     val t = IntervalTheme.type
     Row(Modifier.fillMaxWidth().padding(vertical = Spacing.m), horizontalArrangement = Arrangement.spacedBy(Spacing.m)) {
-        Text("$number", style = t.nextIn.copy(fontSize = 22.sp), color = c.accent, modifier = Modifier.width(20.dp))
+        Text("$number", style = t.numeral, color = c.accent, modifier = Modifier.width(Spacing.screen))
         Column(Modifier.weight(1f), verticalArrangement = Arrangement.spacedBy(Spacing.xs)) {
             Row(verticalAlignment = Alignment.CenterVertically) {
                 Text(step.title, style = t.reminderName, color = c.fg, modifier = Modifier.weight(1f))
                 if (step.status == StepStatus.DONE) {
                     Text("✓ DONE", style = t.fieldLabel, color = c.accent)
                 } else {
-                    Box(
-                        Modifier.heightIn(min = 40.dp).border(1.5.dp, c.fg)
-                            .clickable(role = Role.Button, onClick = onAction)
-                            .padding(horizontal = Spacing.m),
-                        contentAlignment = Alignment.Center,
-                    ) { Text(step.actionLabel.uppercase(), style = t.fieldLabel, color = c.fg) }
+                    SmallButton(step.actionLabel, onAction)
                 }
             }
-            Text(step.reason, style = t.meta.copy(lineHeight = 15.sp), color = c.muted)
+            Text(step.reason, style = t.meta, color = c.muted)
             if (step.status == StepStatus.UNKNOWN) {
                 Text(
                     "This phone can't confirm it. Mark done once it's on.",
                     style = t.meta, color = c.muted,
                 )
-                Text(
-                    "MARK DONE",
-                    style = t.fieldLabel, color = c.accent,
-                    modifier = Modifier.clickable(role = Role.Button, onClick = onConfirm).padding(vertical = Spacing.s),
-                )
+                SmallButton("Mark done", onConfirm, color = c.accent)
             }
         }
     }

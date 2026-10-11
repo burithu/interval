@@ -3,14 +3,9 @@ package io.github.burithu.interval.ui.settings
 import android.content.Context
 import android.os.Build
 import androidx.compose.foundation.background
-import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.Arrangement
-import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
-import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.fillMaxSize
-import androidx.compose.foundation.layout.fillMaxWidth
-import androidx.compose.foundation.layout.heightIn
 import androidx.compose.foundation.layout.navigationBarsPadding
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.statusBarsPadding
@@ -25,11 +20,8 @@ import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
 import androidx.compose.runtime.rememberCoroutineScope
 import androidx.compose.runtime.setValue
-import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.platform.LocalContext
-import androidx.compose.ui.semantics.Role
-import androidx.compose.ui.unit.dp
 import androidx.lifecycle.compose.LifecycleResumeEffect
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import io.github.burithu.interval.AppContainer
@@ -38,8 +30,10 @@ import io.github.burithu.interval.data.ThemeMode
 import io.github.burithu.interval.onboarding.SetupChecks
 import io.github.burithu.interval.ui.ChoiceDialog
 import io.github.burithu.interval.ui.FieldLabel
+import io.github.burithu.interval.ui.Glyph
 import io.github.burithu.interval.ui.Segmented
 import io.github.burithu.interval.ui.SettingRow
+import io.github.burithu.interval.ui.TopBar
 import io.github.burithu.interval.ui.formatInterval
 import io.github.burithu.interval.ui.theme.IntervalTheme
 import io.github.burithu.interval.ui.theme.Spacing
@@ -64,14 +58,7 @@ fun SettingsScreen(container: AppContainer, onBack: () -> Unit, onSetup: () -> U
     var picker by remember { mutableStateOf<Picker?>(null) }
 
     Column(Modifier.fillMaxSize().background(c.bg).statusBarsPadding().navigationBarsPadding()) {
-        Row(Modifier.fillMaxWidth().heightIn(min = 56.dp).padding(horizontal = Spacing.s), verticalAlignment = Alignment.CenterVertically) {
-            Box(
-                Modifier.heightIn(min = Spacing.minTouch).clickable(role = Role.Button, onClickLabel = "Back", onClick = onBack)
-                    .padding(horizontal = Spacing.m),
-                contentAlignment = Alignment.Center,
-            ) { Text("←", style = t.screenTitle, color = c.fg) }
-            Text("SETTINGS", style = t.sheetTitle, color = c.fg)
-        }
+        TopBar("SETTINGS", Glyph.BACK, "Back", onBack)
         Column(
             Modifier.weight(1f).verticalScroll(rememberScrollState()).padding(horizontal = Spacing.screen, vertical = Spacing.s),
             verticalArrangement = Arrangement.spacedBy(Spacing.xl),
@@ -112,7 +99,7 @@ fun SettingsScreen(container: AppContainer, onBack: () -> Unit, onSetup: () -> U
                 HorizontalDivider(color = c.line)
                 SettingRow(label = "Event log", sub = "Last 200 rings and changes", value = "View", onClick = onLog)
                 HorizontalDivider(color = c.line)
-                SettingRow(label = "About", sub = null, value = "Interval ${versionName(context)}", onClick = {})
+                SettingRow(label = "About", sub = null, value = "Interval ${versionName(context)}", onClick = null)
             }
         }
     }

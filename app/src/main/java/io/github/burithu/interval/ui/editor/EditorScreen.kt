@@ -15,7 +15,6 @@ import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.Row
-import androidx.compose.foundation.layout.aspectRatio
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
@@ -50,8 +49,6 @@ import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.semantics.Role
 import androidx.compose.ui.text.input.KeyboardCapitalization
 import androidx.compose.ui.text.input.KeyboardType
-import androidx.compose.ui.unit.dp
-import androidx.compose.ui.unit.sp
 import androidx.core.net.toUri
 import androidx.lifecycle.SavedStateHandle
 import androidx.lifecycle.ViewModel
@@ -64,13 +61,18 @@ import io.github.burithu.interval.data.TimingMode
 import io.github.burithu.interval.data.db.toDomain
 import io.github.burithu.interval.ui.FieldLabel
 import io.github.burithu.interval.ui.ChoiceDialog
+import io.github.burithu.interval.ui.Glyph
+import io.github.burithu.interval.ui.GlyphIcon
+import io.github.burithu.interval.ui.ListRow
 import io.github.burithu.interval.ui.PillRow
+import io.github.burithu.interval.ui.TopBar
 import io.github.burithu.interval.ui.SettingRow
 import io.github.burithu.interval.ui.Segmented
 import io.github.burithu.interval.ui.formatInterval
 import io.github.burithu.interval.ui.formatMinuteOfDay
 import io.github.burithu.interval.ui.theme.IntervalTheme
 import io.github.burithu.interval.ui.theme.Spacing
+import io.github.burithu.interval.ui.theme.Strokes
 import kotlinx.coroutines.launch
 import java.time.DayOfWeek
 import java.time.Instant
@@ -161,14 +163,10 @@ fun EditorScreen(vm: EditorViewModel, onClose: () -> Unit) {
     }
 
     Column(Modifier.fillMaxSize().background(c.bg).statusBarsPadding().navigationBarsPadding().imePadding()) {
-        Row(
-            Modifier.fillMaxWidth().heightIn(min = 56.dp).padding(horizontal = Spacing.s),
-            verticalAlignment = Alignment.CenterVertically,
-        ) {
-            TopAction("✕", c.muted, enabled = true, onClose)
-            Text(if (vm.isNew) "NEW REMINDER" else "EDIT REMINDER", style = t.sheetTitle, color = c.fg, modifier = Modifier.weight(1f))
-            TopAction("SAVE", if (vm.canSave) c.accent else c.muted, enabled = vm.canSave) { vm.save(onClose) }
-        }
+        TopBar(
+            title = if (vm.isNew) "NEW REMINDER" else "EDIT REMINDER",
+            nav = Glyph.CLOSE, navLabel = "Close without saving", onNav = onClose,
+        ) { SaveAction(enabled = vm.canSave) { vm.save(onClose) } }
         Column(
             Modifier.weight(1f).verticalScroll(rememberScrollState()).padding(horizontal = Spacing.screen, vertical = Spacing.s),
             verticalArrangement = Arrangement.spacedBy(Spacing.xl),
@@ -178,16 +176,16 @@ fun EditorScreen(vm: EditorViewModel, onClose: () -> Unit) {
                     value = vm.label,
                     onValueChange = { vm.label = it.take(40) },
                     singleLine = true,
-                    textStyle = t.reminderName.copy(fontSize = 18.sp, color = c.fg),
+                    textStyle = t.title.copy(color = c.fg),
                     cursorBrush = SolidColor(c.accent),
                     keyboardOptions = KeyboardOptions(capitalization = KeyboardCapitalization.Sentences),
                     decorationBox = { inner ->
                         Column {
                             Box(Modifier.padding(vertical = Spacing.s)) {
-                                if (vm.label.isEmpty()) Text("Drink water", style = t.reminderName.copy(fontSize = 18.sp), color = c.muted)
+                                if (vm.label.isEmpty()) Text("Drink water", style = t.title, color = c.muted)
                                 inner()
                             }
-                            Box(Modifier.fillMaxWidth().height(2.dp).background(c.fg))
+                            Box(Modifier.fillMaxWidth().height(Strokes.rule).background(c.fg))
                         }
                     },
                 )
@@ -204,7 +202,7 @@ fun EditorScreen(vm: EditorViewModel, onClose: () -> Unit) {
             Section("Active between") {
                 Row(verticalAlignment = Alignment.Bottom, horizontalArrangement = Arrangement.spacedBy(Spacing.m)) {
                     TimeBox(formatMinuteOfDay(vm.windowStart), null, Modifier.weight(1f)) { picker = Picker.Time(start = true) }
-                    Text("→", style = t.screenTitle, color = c.fg, modifier = Modifier.padding(bottom = Spacing.s))
+                    GlyphIcon(Glyph.ARROW_RIGHT, modifier = Modifier.padding(bottom = Spacing.s))
                     val badge = when {
                         vm.windowEnd == vm.windowStart -> "24 H"
                         vm.windowEnd < vm.windowStart -> "+1 DAY"
@@ -221,10 +219,11 @@ fun EditorScreen(vm: EditorViewModel, onClose: () -> Unit) {
                 Row(horizontalArrangement = Arrangement.spacedBy(Spacing.xs)) {
                     DayOfWeek.entries.forEach { d ->
                         val on = d in vm.days
+                        // At least 48dp tall: on narrow phones the boxes can't be 48dp wide as well.
                         Box(
-                            Modifier.weight(1f).aspectRatio(1f)
+                            Modifier.weight(1f).heightIn(min = Spacing.minTouch)
                                 .background(if (on) c.accent else c.bg)
-                                .border(1.5.dp, if (on) c.accent else c.fg)
+                                .border(Strokes.control, if (on) c.accent else c.fg)
                                 .clickable(role = Role.Checkbox) { vm.toggleDay(d) },
                             contentAlignment = Alignment.Center,
                         ) { Text(d.name.take(1), style = t.reminderName, color = if (on) c.onAccent else c.fg) }
@@ -274,11 +273,8 @@ fun EditorScreen(vm: EditorViewModel, onClose: () -> Unit) {
                     )
                 }
                 HorizontalDivider(color = c.line)
-                Row(
-                    Modifier.fillMaxWidth().heightIn(min = Spacing.minTouch).clickable(role = Role.Switch) { vm.vibrate = !vm.vibrate },
-                    verticalAlignment = Alignment.CenterVertically,
-                ) {
-                    Text("Vibrate", style = t.body.copy(fontSize = 14.sp), color = c.fg, modifier = Modifier.weight(1f))
+                ListRow(twoLine = false, onClick = { vm.vibrate = !vm.vibrate }, role = Role.Switch) {
+                    Text("Vibrate", style = t.body, color = c.fg, modifier = Modifier.weight(1f))
                     Switch(checked = vm.vibrate, onCheckedChange = { vm.vibrate = it })
                 }
             }
@@ -314,12 +310,12 @@ fun EditorScreen(vm: EditorViewModel, onClose: () -> Unit) {
 }
 
 @Composable
-private fun TopAction(label: String, color: androidx.compose.ui.graphics.Color, enabled: Boolean, onClick: () -> Unit) {
+private fun SaveAction(enabled: Boolean, onClick: () -> Unit) {
     Box(
         Modifier.heightIn(min = Spacing.minTouch).clickable(enabled = enabled, role = Role.Button, onClick = onClick)
             .padding(horizontal = Spacing.m),
         contentAlignment = Alignment.Center,
-    ) { Text(label, style = IntervalTheme.type.sheetTitle, color = color) }
+    ) { Text("SAVE", style = IntervalTheme.type.sheetTitle, color = if (enabled) IntervalTheme.colors.accent else IntervalTheme.colors.muted) }
 }
 
 @Composable
@@ -334,7 +330,7 @@ private fun Section(label: String, content: @Composable () -> Unit) {
 private fun Hint(text: String, accent: Boolean = false) {
     Text(
         text,
-        style = IntervalTheme.type.meta.copy(lineHeight = 15.sp),
+        style = IntervalTheme.type.meta,
         color = if (accent) IntervalTheme.colors.accent else IntervalTheme.colors.muted,
     )
 }
@@ -347,12 +343,12 @@ private fun TimeBox(time: String, badge: String?, modifier: Modifier, onClick: (
     // both TimeBoxes keep the same baseline and their underlines line up.
     Column(modifier.heightIn(min = Spacing.minTouch).clickable(role = Role.Button, onClick = onClick)) {
         Row(verticalAlignment = Alignment.Top, horizontalArrangement = Arrangement.spacedBy(Spacing.xs)) {
-            Text(time, style = t.countdown.copy(fontSize = 34.sp, lineHeight = 36.sp), color = c.fg)
+            Text(time, style = t.time, color = c.fg)
             if (badge != null) {
                 Text(badge, style = t.fieldLabel, color = c.accent, modifier = Modifier.padding(top = Spacing.xs))
             }
         }
-        Box(Modifier.fillMaxWidth().height(2.dp).background(c.fg))
+        Box(Modifier.fillMaxWidth().height(Strokes.rule).background(c.fg))
     }
 }
 

@@ -3,10 +3,8 @@ package io.github.burithu.interval.ui.home
 import androidx.compose.foundation.background
 import androidx.compose.foundation.border
 import androidx.compose.foundation.clickable
-import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
-import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.Spacer
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
@@ -25,32 +23,33 @@ import androidx.compose.ui.Modifier
 import androidx.compose.ui.graphics.RectangleShape
 import androidx.compose.ui.semantics.Role
 import androidx.compose.ui.text.style.TextDecoration
-import androidx.compose.ui.unit.dp
-import androidx.compose.ui.unit.sp
+import io.github.burithu.interval.ui.ListRow
 import io.github.burithu.interval.ui.formatNext
 import io.github.burithu.interval.ui.theme.IntervalTheme
+import io.github.burithu.interval.ui.theme.Sizes
 import io.github.burithu.interval.ui.theme.Spacing
+import io.github.burithu.interval.ui.theme.Strokes
 import java.time.Instant
 import java.time.ZoneId
 import java.time.temporal.ChronoUnit
 
-/** Header chip: filled "Pause all", or outlined "Paused" while a pause is active. */
+/** Header chip: outlined "Pause all" at rest, filled "Paused" while a pause is active, so the unusual state is the loud one. */
 @Composable
 internal fun PauseChip(paused: Boolean, onClick: () -> Unit) {
     val c = IntervalTheme.colors
+    val shape = RoundedCornerShape(50)
     Box(
         Modifier.heightIn(min = Spacing.minTouch).clickable(role = Role.Button, onClick = onClick),
         contentAlignment = Alignment.Center,
     ) {
         Box(
             Modifier
-                .then(
-                    if (paused) Modifier.border(1.5.dp, c.fg, RoundedCornerShape(50))
-                    else Modifier.background(c.fg, RoundedCornerShape(50)),
-                )
-                .padding(horizontal = Spacing.m, vertical = 6.dp),
+                .height(Sizes.chip)
+                .then(if (paused) Modifier.background(c.fg, shape) else Modifier.border(Strokes.control, c.fg, shape))
+                .padding(horizontal = Spacing.l),
+            contentAlignment = Alignment.Center,
         ) {
-            Text(if (paused) "PAUSED" else "PAUSE ALL", style = IntervalTheme.type.fieldLabel, color = if (paused) c.fg else c.bg)
+            Text(if (paused) "PAUSED" else "PAUSE ALL", style = IntervalTheme.type.fieldLabel, color = if (paused) c.bg else c.fg)
         }
     }
 }
@@ -63,15 +62,14 @@ internal fun PausedHero(until: Instant, now: Instant, zone: ZoneId, onResume: ()
     Column(Modifier.fillMaxWidth().padding(top = Spacing.s)) {
         Text("ALL REMINDERS", style = t.fieldLabel, color = c.muted)
         Text("Paused", style = t.countdown, color = c.muted)
-        Text("Until ${formatNext(until, now, zone)}", style = t.reminderName.copy(fontSize = 17.sp), color = c.fg)
+        Text("Until ${formatNext(until, now, zone)}", style = t.title, color = c.fg)
         Box(
             Modifier.heightIn(min = Spacing.minTouch).clickable(role = Role.Button, onClick = onResume),
             contentAlignment = Alignment.CenterStart,
         ) {
             Text("Resume now", style = t.reminderName, color = c.accent, textDecoration = TextDecoration.Underline)
         }
-        Spacer(Modifier.height(Spacing.s))
-        Box(Modifier.fillMaxWidth().height(2.dp).background(c.fg))
+        HeroRule()
     }
 }
 
@@ -105,7 +103,7 @@ internal fun PauseSheet(
         dragHandle = null,
     ) {
         Column(Modifier.navigationBarsPadding()) {
-            Box(Modifier.fillMaxWidth().height(2.dp).background(c.fg))
+            Box(Modifier.fillMaxWidth().height(Strokes.rule).background(c.fg))
             Column(Modifier.padding(horizontal = Spacing.screen, vertical = Spacing.l)) {
                 Text(
                     if (pausedUntil != null) "PAUSED UNTIL ${formatNext(pausedUntil, now, zone).uppercase()}" else "PAUSE ALL REMINDERS",
@@ -130,11 +128,7 @@ internal fun PauseSheet(
 private fun SheetRow(label: String, sub: String, accent: Boolean, onClick: () -> Unit) {
     val c = IntervalTheme.colors
     val t = IntervalTheme.type
-    Row(
-        Modifier.fillMaxWidth().heightIn(min = 56.dp).clickable(role = Role.Button, onClick = onClick),
-        verticalAlignment = Alignment.CenterVertically,
-        horizontalArrangement = Arrangement.spacedBy(Spacing.m),
-    ) {
+    ListRow(twoLine = false, onClick = onClick) {
         Text(label, style = t.reminderName, color = if (accent) c.accent else c.fg, modifier = Modifier.weight(1f))
         Text(sub, style = t.meta, color = c.muted)
     }

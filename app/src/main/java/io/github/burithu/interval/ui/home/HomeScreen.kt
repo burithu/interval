@@ -6,9 +6,7 @@ import androidx.compose.animation.slideInVertically
 import androidx.compose.animation.slideOutVertically
 import androidx.compose.animation.fadeIn
 import androidx.compose.animation.fadeOut
-import androidx.compose.foundation.Canvas
 import androidx.compose.foundation.background
-import androidx.compose.foundation.border
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
@@ -20,7 +18,6 @@ import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.heightIn
 import androidx.compose.foundation.layout.padding
-import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.layout.statusBarsPadding
 import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.items
@@ -37,19 +34,14 @@ import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.platform.LocalContext
-import androidx.compose.ui.graphics.drawscope.Stroke
 import androidx.compose.ui.semantics.Role
 import androidx.compose.ui.semantics.contentDescription
 import androidx.compose.ui.semantics.semantics
 import androidx.compose.ui.text.AnnotatedString
-import androidx.compose.ui.text.SpanStyle
 import androidx.compose.ui.text.buildAnnotatedString
-import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.style.TextDecoration
 import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.text.withStyle
-import androidx.compose.ui.unit.dp
-import androidx.compose.ui.unit.sp
 import androidx.lifecycle.ViewModel
 import androidx.lifecycle.compose.LifecycleResumeEffect
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
@@ -64,14 +56,19 @@ import io.github.burithu.interval.data.TimingMode
 import io.github.burithu.interval.data.db.toDomain
 import io.github.burithu.interval.onboarding.SetupChecks
 import io.github.burithu.interval.ui.BottomBar
+import io.github.burithu.interval.ui.Glyph
+import io.github.burithu.interval.ui.IconButton
+import io.github.burithu.interval.ui.ListRow
+import io.github.burithu.interval.ui.SmallButton
 import io.github.burithu.interval.ui.formatInterval
 import io.github.burithu.interval.ui.formatNext
 import io.github.burithu.interval.ui.formatWindow
 import io.github.burithu.interval.ui.formatDays
 import io.github.burithu.interval.ui.reminderMeta
-import io.github.burithu.interval.ui.theme.ArchivoRegular
 import io.github.burithu.interval.ui.theme.IntervalTheme
+import io.github.burithu.interval.ui.theme.Sizes
 import io.github.burithu.interval.ui.theme.Spacing
+import io.github.burithu.interval.ui.theme.Strokes
 import kotlinx.coroutines.delay
 import kotlinx.coroutines.flow.SharingStarted
 import kotlinx.coroutines.flow.StateFlow
@@ -153,10 +150,10 @@ fun HomeScreen(vm: HomeViewModel, onOpen: (Long) -> Unit, onAdd: () -> Unit, onS
             contentPadding = androidx.compose.foundation.layout.PaddingValues(horizontal = Spacing.screen, vertical = Spacing.s),
         ) {
             item(key = "header") {
-                Row(Modifier.fillMaxWidth().heightIn(min = 56.dp), verticalAlignment = Alignment.CenterVertically) {
+                Row(Modifier.fillMaxWidth().heightIn(min = Sizes.rowSingle), verticalAlignment = Alignment.CenterVertically) {
                     Text("REMINDERS", style = t.screenTitle, color = c.fg, modifier = Modifier.weight(1f))
                     if (rows.isNotEmpty()) PauseChip(paused = pausedUntil != null) { showPause = true }
-                    SettingsButton(onSettings)
+                    IconButton(Glyph.GEAR, "Settings", onSettings)
                 }
             }
             item(key = "banner") { ReliabilityBanner(settings.confirmedSteps, onSetup) }
@@ -188,23 +185,6 @@ fun HomeScreen(vm: HomeViewModel, onOpen: (Long) -> Unit, onAdd: () -> Unit, onS
             onResume = { vm.resume(); showPause = false },
             onDismiss = { showPause = false },
         )
-    }
-}
-
-/** Gear from the mockup: a ring with a solid centre, drawn so no icon library is needed. */
-@Composable
-private fun SettingsButton(onClick: () -> Unit) {
-    val fg = IntervalTheme.colors.fg
-    Box(
-        Modifier.size(Spacing.minTouch).clickable(role = Role.Button, onClickLabel = "Settings", onClick = onClick)
-            .semantics { contentDescription = "Settings" },
-        contentAlignment = Alignment.Center,
-    ) {
-        Canvas(Modifier.size(20.dp)) {
-            val stroke = 2.5.dp.toPx()
-            drawCircle(fg, radius = size.minDimension / 2 - stroke / 2, style = Stroke(width = stroke))
-            drawCircle(fg, radius = size.minDimension / 2 - stroke * 2)
-        }
     }
 }
 
@@ -277,18 +257,25 @@ private fun CountdownHero(rows: List<HomeRow>, now: Instant, zone: ZoneId) {
                 modifier = Modifier.semantics { contentDescription = "$label: ${text.text}" },
             )
         }
-        Text(name, style = t.reminderName.copy(fontSize = 17.sp), color = c.fg)
+        Text(name, style = t.title, color = c.fg)
         Spacer(Modifier.height(Spacing.xs))
-        Text(detail, style = t.meta.copy(fontSize = 12.sp), color = c.muted)
-        Spacer(Modifier.height(Spacing.m))
-        Box(Modifier.fillMaxWidth().height(2.dp).background(c.fg))
+        Text(detail, style = t.meta, color = c.muted)
+        HeroRule()
     }
 }
 
+/** The 2dp rule that closes both heroes, at the same distance so pausing doesn't shift the list. */
+@Composable
+internal fun HeroRule() {
+    Spacer(Modifier.height(Spacing.l))
+    Box(Modifier.fillMaxWidth().height(Strokes.rule).background(IntervalTheme.colors.fg))
+}
+
 /** "12 min", "1 h 42 min", "< 1 min". Numbers stay big; units drop to body size. */
+@Composable
 private fun countdownText(left: Duration, unitColor: androidx.compose.ui.graphics.Color): AnnotatedString {
     val minutes = (left.seconds + 59) / 60
-    val unit = SpanStyle(fontSize = 22.sp, color = unitColor, fontFamily = ArchivoRegular, fontWeight = FontWeight.SemiBold, letterSpacing = 0.sp)
+    val unit = IntervalTheme.type.countdownUnit.toSpanStyle().copy(color = unitColor)
     return buildAnnotatedString {
         when {
             minutes < 1 -> { append("<1"); withStyle(unit) { append(" min") } }
@@ -313,14 +300,11 @@ private fun ReminderRow(row: HomeRow, now: Instant, zone: ZoneId, paused: Boolea
         row.state?.nextRingAt != null -> formatNext(row.state.nextRingAt, now, zone)
         else -> "—"
     }
-    Row(
-        Modifier.fillMaxWidth().heightIn(min = 64.dp).clickable(onClick = onClick).padding(vertical = Spacing.m),
-        verticalAlignment = Alignment.CenterVertically,
-        horizontalArrangement = Arrangement.spacedBy(Spacing.m),
-    ) {
-        Column(Modifier.weight(1f), verticalArrangement = Arrangement.spacedBy(2.dp)) {
+    ListRow(twoLine = true, onClick = onClick) {
+        // The meta line wraps rather than cutting off the schedule.
+        Column(Modifier.weight(1f), verticalArrangement = Arrangement.spacedBy(Spacing.xxs)) {
             Text(r.label, style = t.reminderName, color = if (r.enabled) c.fg else c.muted, maxLines = 1, overflow = TextOverflow.Ellipsis)
-            Text(reminderMeta(r), style = t.meta, color = c.muted, maxLines = 1, overflow = TextOverflow.Ellipsis)
+            Text(reminderMeta(r), style = t.meta, color = c.muted, maxLines = 2, overflow = TextOverflow.Ellipsis)
         }
         Text(next, style = t.nextIn, color = if (r.enabled && !paused) c.accent else c.muted)
         Switch(checked = r.enabled, onCheckedChange = onToggle)
@@ -331,23 +315,15 @@ private fun ReminderRow(row: HomeRow, now: Instant, zone: ZoneId, paused: Boolea
 private fun StarterRow(r: Reminder, onAdd: () -> Unit) {
     val c = IntervalTheme.colors
     val t = IntervalTheme.type
-    Row(
-        Modifier.fillMaxWidth().heightIn(min = 64.dp).padding(vertical = Spacing.m),
-        verticalAlignment = Alignment.CenterVertically,
-        horizontalArrangement = Arrangement.spacedBy(Spacing.m),
-    ) {
-        Column(Modifier.weight(1f), verticalArrangement = Arrangement.spacedBy(2.dp)) {
+    ListRow(twoLine = true, onClick = null) {
+        Column(Modifier.weight(1f), verticalArrangement = Arrangement.spacedBy(Spacing.xxs)) {
             Text(r.label, style = t.reminderName, color = c.fg)
             Text(
                 "Every ${formatInterval(r.intervalMinutes)} · ${formatWindow(r.windowStart, r.windowEnd)} · ${formatDays(r.days)}",
-                style = t.meta, color = c.muted, maxLines = 1, overflow = TextOverflow.Ellipsis,
+                style = t.meta, color = c.muted, maxLines = 2, overflow = TextOverflow.Ellipsis,
             )
         }
-        Box(
-            Modifier.heightIn(min = 40.dp).border(1.5.dp, c.fg).clickable(role = Role.Button, onClick = onAdd)
-                .padding(horizontal = Spacing.m),
-            contentAlignment = Alignment.Center,
-        ) { Text("+ ADD", style = t.fieldLabel, color = c.fg) }
+        SmallButton("+ Add", onAdd)
     }
 }
 
@@ -369,7 +345,7 @@ private fun ReliabilityBanner(confirmed: Set<String>, onFix: () -> Unit) {
             Modifier.fillMaxWidth().background(c.fg).clickable(role = Role.Button, onClick = onFix).padding(Spacing.m),
             verticalAlignment = Alignment.CenterVertically,
         ) {
-            Column(Modifier.weight(1f)) {
+            Column(Modifier.weight(1f), verticalArrangement = Arrangement.spacedBy(Spacing.xxs)) {
                 Text("Reminders may be late.", style = t.reminderName, color = c.bg)
                 Text(missing.joinToString(" · ") { it.title }, style = t.meta, color = c.bg)
             }
