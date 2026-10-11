@@ -3,6 +3,10 @@ package io.github.burithu.interval.ringing
 import android.app.Service
 import android.content.Intent
 import android.content.pm.ServiceInfo
+import android.graphics.PixelFormat
+import android.view.View
+import android.view.WindowManager
+import io.github.burithu.interval.ui.alarm.AlarmActivity
 import android.media.AudioAttributes
 import android.media.AudioFocusRequest
 import android.media.AudioManager
@@ -49,6 +53,7 @@ class RingService : Service() {
     private var wakeLock: PowerManager.WakeLock? = null
     private var endJob: Job? = null
     private var playingId: Long? = null
+    private var overlay: View? = null
 
     override fun onBind(intent: Intent?): IBinder? = null
 
@@ -125,6 +130,7 @@ class RingService : Service() {
         }
         if (withSound) startSound(r.soundUri, alarm, r.id)
         if (withVibration) vibrate(alarm)
+        if (alarm) openAlarmScreen(r.id)
 
         endJob = scope.launch {
             if (alarm) {
@@ -136,6 +142,46 @@ class RingService : Service() {
                 finish(r.id, missed = false)
             }
         }
+    }
+
+    /**
+     * Opens the alarm screen from the background. Android 15+ only lets a "Display over other
+     * apps" holder start activities while one of its overlay windows is visible, so a 1×1
+     * transparent overlay is shown for the moment of the launch.
+     */
+    private fun openAlarmScreen(id: Long) {
+        val canOverlay = Settings.canDrawOverlays(this)
+        if (canOverlay) showLaunchOverlay()
+        scope.launch {
+            if (canOverlay) delay(OVERLAY_SETTLE.toMillis())
+            AlarmActivity.open(this@RingService, id)
+            delay(OVERLAY_HOLD.toMillis())
+            removeLaunchOverlay()
+        }
+    }
+
+    private fun showLaunchOverlay() {
+        if (overlay != null) return
+        val view = View(this)
+        val params = WindowManager.LayoutParams(
+            1, 1,
+            WindowManager.LayoutParams.TYPE_APPLICATION_OVERLAY,
+            WindowManager.LayoutParams.FLAG_NOT_FOCUSABLE or WindowManager.LayoutParams.FLAG_NOT_TOUCHABLE,
+            PixelFormat.TRANSLUCENT,
+        )
+        try {
+            getSystemService(WindowManager::class.java).addView(view, params)
+            overlay = view
+        } catch (_: RuntimeException) {
+            // Overlay refused; the full-screen intent remains the fallback.
+        }
+    }
+
+    private fun removeLaunchOverlay() {
+        overlay?.let { v ->
+            try { getSystemService(WindowManager::class.java).removeView(v) } catch (_: RuntimeException) { }
+        }
+        overlay = null
     }
 
     /** Natural end: the chime finished, or the alarm's ring length ran out. */
@@ -209,6 +255,7 @@ class RingService : Service() {
     }
 
     override fun onDestroy() {
+        removeLaunchOverlay()
         stopPlayback()
         scope.cancel()
         super.onDestroy()
@@ -220,5 +267,7 @@ class RingService : Service() {
         private val CHIME_MAX: Duration = Duration.ofSeconds(10)
         private val VIBRATE_ONLY: Duration = Duration.ofMillis(1500)
         private val SCREEN_WAKE: Duration = Duration.ofSeconds(10)
+        private val OVERLAY_SETTLE: Duration = Duration.ofMillis(200)
+        private val OVERLAY_HOLD: Duration = Duration.ofSeconds(3)
     }
 }
