@@ -1,0 +1,68 @@
+# Interval — Build Plan
+
+See [SPEC.md](SPEC.md) for what is being built. This file covers order of work.
+
+Strategy: riskiest first. Scheduling logic, then real rings on the Xiaomi 13, then the Big Type polish.
+
+## Milestones
+
+### M0 — Project setup
+- [ ] Install Android Studio (bundled JBR 21 JDK, Android SDK)
+- [ ] Create project: Kotlin, Compose, min SDK 26, Gradle Kotlin DSL + version catalog
+- [ ] `git init`, `.gitignore`, README, GitHub repository
+- [ ] GitHub Actions: build + unit tests on push
+- [ ] Packages: `ui/ data/ scheduling/ ringing/ onboarding/`
+- [ ] Bundle Archivo variable font; theme tokens (light + dark)
+
+### M1 — Scheduling core (no UI)
+- [ ] Models: `Reminder`, `ReminderState`, enums
+- [ ] `nextRing()` pure function implementing SPEC §3
+- [ ] Unit tests: both modes, overnight, 24 h, days, snooze vs grid, missed, pause/resume, DST and time-zone changes
+
+Done when: all rules pass their tests.
+
+### M2 — Smallest working version
+- [ ] Room DB, DAOs, repository; DataStore settings
+- [ ] Basic Home list + basic editor (unstyled is fine)
+- [ ] `setAlarmClock` scheduling; `RingReceiver` → notification with Dismiss/Snooze; swipe = dismiss; missed check
+- [ ] Per-reminder notification channels
+- [ ] `RescheduleReceiver` (boot, update, time, time zone, permission)
+- [ ] Event log
+
+Done when: a reminder created on the Xiaomi 13 rings, dismiss restarts it, and it survives a reboot.
+
+### M3 — Onboarding & reliability
+- [ ] Screens 01–03; permission checks; warning banner (07)
+- [ ] Xiaomi test pass 1 (screen off 2 h, battery saver, swiped from recents) — review event log
+
+### M4 — Alarm-style rings
+- [ ] `AlarmRingService` (confirm foreground service type for Android 14+)
+- [ ] `AlarmActivity` over lock screen via full-screen intent
+- [ ] Ring length → missed; snooze from alarm screen
+
+### M5 — Big Type UI
+- [ ] Home: hero countdown, sorting, switches, starters, empty state (04, 05)
+- [ ] Full editor (09): all fields, overnight "+1 DAY", hints, validation, delete
+- [ ] Dark theme, countdown animation, reduced motion
+
+### M6 — Pause, Settings, log viewer
+- [ ] Pause sheet + paused Home (06, 08)
+- [ ] Settings (12)
+- [ ] Event log viewer
+
+### M7 — Hardening & v1.0
+- [ ] Full Xiaomi checklist, twice, on separate days
+- [ ] Accessibility: TalkBack labels, large fonts, 48dp targets
+- [ ] Auto Backup config; recompute on restore
+- [ ] Signed APK as GitHub Release v1.0
+
+## Testing
+Unit (scheduling, largest suite) → DAO → a few Compose UI tests → manual Xiaomi checklist with event-log evidence. CI runs unit tests on every push.
+
+## Deploying to the phone
+- Development: USB debugging from Android Studio.
+- Xiaomi: enable Developer options → **USB debugging** and **Install via USB** (requires a signed-in Xiaomi account).
+- Personal releases: signed APK on GitHub Releases.
+
+## Later
+Play Store release · daily dismissed/missed count · QS tile · widget · export/import · other phone makers in the reliability screen.

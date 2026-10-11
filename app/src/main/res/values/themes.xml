@@ -1,0 +1,8 @@
+<resources>
+    <color name="window_bg">#FBFBFA</color>
+    <color name="brand_accent">#2F4BFF</color>
+
+    <style name="Theme.Interval" parent="android:Theme.Material.Light.NoActionBar">
+        <item name="android:windowBackground">@color/window_bg</item>
+    </style>
+</resources>
