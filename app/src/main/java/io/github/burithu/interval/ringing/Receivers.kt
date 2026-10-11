@@ -21,21 +21,21 @@ private fun BroadcastReceiver.launchAsync(context: Context, block: suspend (Inte
     }
 }
 
-/** System alarms: a reminder is due, or its missed timeout ran out. */
+/** System alarms: a reminder is due, or its notification should be relabeled as missed. */
 class RingReceiver : BroadcastReceiver() {
     override fun onReceive(context: Context, intent: Intent) {
         val id = intent.getLongExtra(EXTRA_ID, -1).takeIf { it > 0 } ?: return
         launchAsync(context) { app ->
             when (intent.action) {
                 ACTION_RING -> app.container.engine.onRing(id)
-                ACTION_MISSED_CHECK -> app.container.engine.onAction(id, RingAction.MISSED)
+                ACTION_MISSED_LABEL -> app.container.engine.onMissedLabel(id)
             }
         }
     }
 
     companion object {
         const val ACTION_RING = "io.github.burithu.interval.RING"
-        const val ACTION_MISSED_CHECK = "io.github.burithu.interval.MISSED_CHECK"
+        const val ACTION_MISSED_LABEL = "io.github.burithu.interval.MISSED_LABEL"
         const val EXTRA_ID = "reminder_id"
     }
 }

@@ -175,11 +175,13 @@ Instants are stored in UTC; windows as local minute-of-day. All scheduling goes 
 ```
 nextRing() → AlarmManager.setAlarmClock()   (one alarm per reminder)
   → RingReceiver
-      NOTIFICATION: post notification + schedule missed check
-      ALARM: AlarmRingService (foreground) → sound/vibrate for ringSeconds + full-screen intent → AlarmActivity
-  → Dismiss / Snooze / swipe / timeout → ActionReceiver
+      post notification (ALARM: AlarmRingService → AlarmActivity, M4)
+      schedule the "if ignored" ring now: nextRing(Missed(now + timeout)) via setAlarmClock
+  → Dismiss / Snooze / swipe → ActionReceiver → replaces the "if ignored" ring
+  → "if ignored" ring fires while still RINGING → log MISSED, ring again
   → update ReminderState → nextRing() → schedule → EventLog
 ```
+- Missed handling never waits on a separate alarm. On HyperOS, `setExactAndAllowWhileIdle` missed checks arrived 13–23 min late (2026-10-11 test), which stalled the reminder. A cosmetic, inexact alarm only relabels the notification "Missed".
 - `setAlarmClock()`: Doze-exempt, no 9-min throttle; status-bar alarm icon accepted (D30).
 - One notification channel per reminder (per-reminder sound).
 - `RescheduleReceiver`: boot, package replaced, time set, time-zone changed, exact-alarm permission changed.

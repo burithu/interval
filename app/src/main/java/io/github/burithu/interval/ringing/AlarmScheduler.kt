@@ -10,9 +10,12 @@ import io.github.burithu.interval.MainActivity
 import java.time.Instant
 
 /**
- * Registers system alarms. Rings use setAlarmClock() (D30): Doze-exempt and not throttled.
- * Missed checks use a plain exact alarm, since a few minutes of delay there is harmless.
- * Without the exact-alarm permission both fall back to inexact alarms.
+ * Registers system alarms. Every ring, including the "if ignored" follow-up, uses
+ * setAlarmClock() (D30): Doze-exempt and not throttled. Without the exact-alarm permission
+ * rings fall back to inexact alarms.
+ *
+ * The missed label is cosmetic and inexact on purpose. On HyperOS even
+ * setExactAndAllowWhileIdle() was observed 13–23 minutes late.
  */
 class AlarmScheduler(private val context: Context) {
     private val am = context.getSystemService(AlarmManager::class.java)
@@ -35,14 +38,13 @@ class AlarmScheduler(private val context: Context) {
         }
     }
 
-    fun scheduleMissedCheck(reminderId: Long, at: Instant) {
-        val op = pending(reminderId, RingReceiver.ACTION_MISSED_CHECK, REQ_MISSED)
-        if (canScheduleExact()) am.setExactAndAllowWhileIdle(AlarmManager.RTC_WAKEUP, at.toEpochMilli(), op)
-        else am.setAndAllowWhileIdle(AlarmManager.RTC_WAKEUP, at.toEpochMilli(), op)
+    fun scheduleMissedLabel(reminderId: Long, at: Instant) {
+        val op = pending(reminderId, RingReceiver.ACTION_MISSED_LABEL, REQ_MISSED)
+        am.setAndAllowWhileIdle(AlarmManager.RTC_WAKEUP, at.toEpochMilli(), op)
     }
 
     fun cancelRing(reminderId: Long) = am.cancel(pending(reminderId, RingReceiver.ACTION_RING, REQ_RING))
-    fun cancelMissedCheck(reminderId: Long) = am.cancel(pending(reminderId, RingReceiver.ACTION_MISSED_CHECK, REQ_MISSED))
+    fun cancelMissedLabel(reminderId: Long) = am.cancel(pending(reminderId, RingReceiver.ACTION_MISSED_LABEL, REQ_MISSED))
 
     private fun pending(reminderId: Long, action: String, req: Int): PendingIntent {
         val intent = Intent(context, RingReceiver::class.java)
