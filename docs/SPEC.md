@@ -258,3 +258,4 @@ Onboarding (M3) on Xiaomi must cover: Autostart, Battery "No restrictions", noti
 | D32 | UI streamline: 11-size type scale, minimum 11sp; shared TopBar/ListRow/SmallButton; drawn icons; keep the filled Add bar; row meta wraps to 2 lines; Pause chip outlined at rest, filled while paused |
 | D33 | Alarm type per reminder: Screen only / Vibrate / Full alarm (default Full). Alarms no longer ring through silent: silent shows the screen only, vibrate mode drops the sound (overrides "rings through silent mode") |
 | D34 | "Vibrate on silent" switch per reminder (notification and alarm), default off. Silent-mode vibration uses the alarm vibration usage, since Android drops notification vibration on silent |
+| D35 | App icon: white three-quarter arc on accent blue (option A1: radius 18, stroke 7 in the 108dp canvas), clear of the mask edges. Status-bar icon stays the same arc. Chosen over Big I, Rhythm, Dial, Brackets, Progress |

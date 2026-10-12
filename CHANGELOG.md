@@ -3,6 +3,9 @@
 Every version is also a [GitHub release](https://github.com/burithu/interval/releases).
 Versions before 1.0.0 are pre-releases built during development; 1.0.0 is the first stable release (milestone M7).
 
+## 0.12.0 — App icon
+- Final app icon: the timer arc, sized down so it sits clear of the icon's edges on every launcher shape.
+
 ## 0.11.0 — Vibrate on silent
 - New "Vibrate on silent" switch for notifications and alarms: on silent the ring still vibrates, with no sound. Off by default.
 - Shown only when the reminder vibrates (Vibrate on for notifications; Vibrate or Full alarm for alarms).
