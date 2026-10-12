@@ -94,6 +94,7 @@ class EditorViewModel(private val c: AppContainer, handle: SavedStateHandle) : V
     var ringSeconds by mutableIntStateOf(60)
     var soundUri by mutableStateOf<String?>(null)
     var vibrate by mutableStateOf(true)
+    var vibrateOnSilent by mutableStateOf(false)
     private var original: Reminder? = null
 
     init {
@@ -106,12 +107,16 @@ class EditorViewModel(private val c: AppContainer, handle: SavedStateHandle) : V
                     label = r.label; intervalMinutes = r.intervalMinutes; windowStart = r.windowStart
                     windowEnd = r.windowEnd; days = r.days; timingMode = r.timingMode; ringStyle = r.ringStyle; alarmMode = r.alarmMode
                     snoozeMinutes = r.snoozeMinutes; ringSeconds = r.ringSeconds; soundUri = r.soundUri; vibrate = r.vibrate
+                    vibrateOnSilent = r.vibrateOnSilent
                 }
             }
         }
     }
 
     val canSave: Boolean get() = label.isNotBlank() && !days.isEmpty && intervalMinutes in 1..1440
+
+    /** Whether a ring vibrates at all; only then can it vibrate on silent. */
+    val vibrates: Boolean get() = if (ringStyle == RingStyle.ALARM) alarmMode != AlarmMode.SCREEN else vibrate
 
     fun toggleDay(d: DayOfWeek) {
         days = Days(days.mask xor Days.of(d).mask)
@@ -123,7 +128,8 @@ class EditorViewModel(private val c: AppContainer, handle: SavedStateHandle) : V
         val r = base.copy(
             label = label.trim().take(40), intervalMinutes = intervalMinutes, windowStart = windowStart,
             windowEnd = windowEnd, days = days, timingMode = timingMode, ringStyle = ringStyle, alarmMode = alarmMode,
-            snoozeMinutes = snoozeMinutes, ringSeconds = ringSeconds, soundUri = soundUri, vibrate = vibrate, enabled = true,
+            snoozeMinutes = snoozeMinutes, ringSeconds = ringSeconds, soundUri = soundUri, vibrate = vibrate,
+            vibrateOnSilent = vibrateOnSilent, enabled = true,
         )
         viewModelScope.launch {
             c.engine.save(r)
@@ -263,7 +269,8 @@ fun EditorScreen(vm: EditorViewModel, onClose: () -> Unit) {
                         vm.alarmMode == AlarmMode.SCREEN -> "Full-screen alarm, no sound or vibration."
                         vm.alarmMode == AlarmMode.VIBRATE -> "Full-screen alarm that vibrates."
                         else -> "Full-screen alarm with sound and vibration."
-                    } + " On silent it only shows; on vibrate it makes no sound.",
+                    } + if (vm.vibrates && vm.vibrateOnSilent) " On silent and vibrate it vibrates without sound."
+                    else " On silent it only shows; on vibrate it makes no sound.",
                 )
             }
             Column {
@@ -295,6 +302,16 @@ fun EditorScreen(vm: EditorViewModel, onClose: () -> Unit) {
                     ListRow(twoLine = false, onClick = { vm.vibrate = !vm.vibrate }, role = Role.Switch) {
                         Text("Vibrate", style = t.body, color = c.fg, modifier = Modifier.weight(1f))
                         Switch(checked = vm.vibrate, onCheckedChange = { vm.vibrate = it })
+                    }
+                }
+                if (vm.vibrates) {
+                    HorizontalDivider(color = c.line)
+                    ListRow(twoLine = true, onClick = { vm.vibrateOnSilent = !vm.vibrateOnSilent }, role = Role.Switch) {
+                        Column(Modifier.weight(1f)) {
+                            Text("Vibrate on silent", style = t.body, color = c.fg)
+                            Text("Still vibrates when the phone is on silent. Never makes a sound.", style = t.meta, color = c.muted)
+                        }
+                        Switch(checked = vm.vibrateOnSilent, onCheckedChange = { vm.vibrateOnSilent = it })
                     }
                 }
             }

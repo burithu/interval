@@ -15,7 +15,8 @@ enum class RingStyle { NOTIFICATION, ALARM }
 
 /**
  * What an alarm-style ring does besides showing the alarm screen (D33). Silent mode reduces any
- * of these to the screen only; vibrate mode drops the sound.
+ * of these to the screen only, unless [Reminder.vibrateOnSilent] keeps the vibration; vibrate
+ * mode drops the sound.
  */
 enum class AlarmMode { SCREEN, VIBRATE, FULL }
 
@@ -59,6 +60,8 @@ data class Reminder(
     val snoozeMinutes: Int = 10,
     val soundUri: String? = null,
     val vibrate: Boolean = true,
+    /** Keeps vibration (never sound) when the phone is on silent (D34). */
+    val vibrateOnSilent: Boolean = false,
     val enabled: Boolean = true,
     val createdAt: Instant = Instant.EPOCH,
 ) {

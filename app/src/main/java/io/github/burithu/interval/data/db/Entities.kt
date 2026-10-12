@@ -29,6 +29,7 @@ data class ReminderEntity(
     val snoozeMinutes: Int,
     val soundUri: String?,
     val vibrate: Boolean,
+    @ColumnInfo(defaultValue = "0") val vibrateOnSilent: Boolean,
     val enabled: Boolean,
     val createdAt: Instant,
 )
@@ -67,13 +68,15 @@ data class EventLogEntity(
 fun ReminderEntity.toDomain() = Reminder(
     id = id, label = label, intervalMinutes = intervalMinutes, windowStart = windowStart, windowEnd = windowEnd,
     days = Days(daysMask), timingMode = timingMode, ringStyle = ringStyle, alarmMode = alarmMode, ringSeconds = ringSeconds,
-    snoozeMinutes = snoozeMinutes, soundUri = soundUri, vibrate = vibrate, enabled = enabled, createdAt = createdAt,
+    snoozeMinutes = snoozeMinutes, soundUri = soundUri, vibrate = vibrate, vibrateOnSilent = vibrateOnSilent,
+    enabled = enabled, createdAt = createdAt,
 )
 
 fun Reminder.toEntity() = ReminderEntity(
     id = id, label = label, intervalMinutes = intervalMinutes, windowStart = windowStart, windowEnd = windowEnd,
     daysMask = days.mask, timingMode = timingMode, ringStyle = ringStyle, alarmMode = alarmMode, ringSeconds = ringSeconds,
-    snoozeMinutes = snoozeMinutes, soundUri = soundUri, vibrate = vibrate, enabled = enabled, createdAt = createdAt,
+    snoozeMinutes = snoozeMinutes, soundUri = soundUri, vibrate = vibrate, vibrateOnSilent = vibrateOnSilent,
+    enabled = enabled, createdAt = createdAt,
 )
 
 fun ReminderStateEntity.toDomain() = ReminderState(reminderId, phase, nextRingAt, ringingSince)

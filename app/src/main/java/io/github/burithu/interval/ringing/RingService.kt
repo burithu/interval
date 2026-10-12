@@ -45,7 +45,8 @@ import java.time.Instant
  * - Notification: one chime and vibration. The notification is then detached so it stays in
  *   the shade, dismissible, after the service stops.
  *
- * Both follow the ringer mode: silent means no sound or vibration, vibrate means no sound.
+ * Both follow the ringer mode: silent means no sound or vibration (vibration stays if the
+ * reminder vibrates on silent), vibrate means no sound.
  */
 class RingService : Service() {
     private val container get() = (application as IntervalApp).container
@@ -117,10 +118,12 @@ class RingService : Service() {
 
         val alarm = r.ringStyle == RingStyle.ALARM
         // Both styles follow the ringer mode (D33): silent shows only, vibrate drops the sound.
-        // An alarm always shows its screen; its mode decides what else it does.
+        // vibrateOnSilent keeps the vibration on silent (D34). An alarm always shows its screen;
+        // its mode decides what else it does.
         val mode = audio.ringerMode
+        val silent = mode == AudioManager.RINGER_MODE_SILENT
         val withSound = mode == AudioManager.RINGER_MODE_NORMAL && (!alarm || r.alarmMode == AlarmMode.FULL)
-        val withVibration = mode != AudioManager.RINGER_MODE_SILENT && (if (alarm) r.alarmMode != AlarmMode.SCREEN else r.vibrate)
+        val withVibration = (!silent || r.vibrateOnSilent) && (if (alarm) r.alarmMode != AlarmMode.SCREEN else r.vibrate)
         val maxLength = if (alarm) Duration.ofSeconds(r.ringSeconds.toLong()) else CHIME_MAX
 
         val power = getSystemService(PowerManager::class.java)
@@ -135,7 +138,7 @@ class RingService : Service() {
             ).acquire(SCREEN_WAKE.toMillis())
         }
         if (withSound) startSound(r.soundUri, alarm, r.id)
-        if (withVibration) vibrate(alarm)
+        if (withVibration) vibrate(alarm, bypassSilent = silent)
         if (alarm) openAlarmScreen(r.id)
 
         endJob = scope.launch {
@@ -226,20 +229,25 @@ class RingService : Service() {
         }
     }
 
-    private fun vibrate(alarm: Boolean) {
+    /**
+     * Android drops notification-usage vibration on silent, so a ring that vibrates through
+     * silent ([bypassSilent]) uses the alarm usage, which silent mode doesn't block.
+     */
+    private fun vibrate(alarm: Boolean, bypassSilent: Boolean) {
         val effect = if (alarm) VibrationEffect.createWaveform(longArrayOf(0, 800, 600), 0)
         else VibrationEffect.createWaveform(longArrayOf(0, 400, 200, 400), -1)
+        val asAlarm = alarm || bypassSilent
         if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.TIRAMISU) {
             vibrator.vibrate(
                 effect,
-                VibrationAttributes.createForUsage(if (alarm) VibrationAttributes.USAGE_ALARM else VibrationAttributes.USAGE_NOTIFICATION),
+                VibrationAttributes.createForUsage(if (asAlarm) VibrationAttributes.USAGE_ALARM else VibrationAttributes.USAGE_NOTIFICATION),
             )
         } else {
             @Suppress("DEPRECATION")
             vibrator.vibrate(
                 effect,
                 AudioAttributes.Builder()
-                    .setUsage(if (alarm) AudioAttributes.USAGE_ALARM else AudioAttributes.USAGE_NOTIFICATION)
+                    .setUsage(if (asAlarm) AudioAttributes.USAGE_ALARM else AudioAttributes.USAGE_NOTIFICATION)
                     .build(),
             )
         }

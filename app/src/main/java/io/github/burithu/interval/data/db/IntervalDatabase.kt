@@ -16,10 +16,11 @@ class Converters {
 
 @Database(
     entities = [ReminderEntity::class, ReminderStateEntity::class, EventLogEntity::class],
-    version = 2,
+    version = 3,
     exportSchema = true,
     // 2: reminders.alarmMode (D33); existing alarms become FULL, what they did before.
-    autoMigrations = [AutoMigration(from = 1, to = 2)],
+    // 3: reminders.vibrateOnSilent (D34); off, so silent mode behaves as before.
+    autoMigrations = [AutoMigration(from = 1, to = 2), AutoMigration(from = 2, to = 3)],
 )
 @TypeConverters(Converters::class)
 abstract class IntervalDatabase : RoomDatabase() {

@@ -3,6 +3,10 @@
 Every version is also a [GitHub release](https://github.com/burithu/interval/releases).
 Versions before 1.0.0 are pre-releases built during development; 1.0.0 is the first stable release (milestone M7).
 
+## 0.11.0 — Vibrate on silent
+- New "Vibrate on silent" switch for notifications and alarms: on silent the ring still vibrates, with no sound. Off by default.
+- Shown only when the reminder vibrates (Vibrate on for notifications; Vibrate or Full alarm for alarms).
+
 ## 0.10.0 — Alarm types and silent mode
 - Alarm reminders have a type: Screen only, Vibrate, or Full alarm (sound and vibration). Existing alarms stay Full alarm.
 - Alarms respect the phone's mode: on silent they only show on screen; on vibrate they make no sound.
