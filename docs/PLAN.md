@@ -55,7 +55,7 @@ Interval is for every Android phone (D36). The Xiaomi 13 is the only physical te
 - [x] Accessibility: TalkBack labels, large fonts, 48dp targets
 - [x] Auto Backup config; recompute on restore
 - [x] Reliability setup for other makers: Samsung, OnePlus/Oppo/Realme, Vivo/iQOO, Honor/Huawei, Asus, Motorola, stock; dontkillmyapp.com link as fallback
-- [ ] Reliability checklist on a stock-Android emulator (Pixel image)
+- [ ] Reliability checklist on a stock-Android emulator (Pixel image) — partial run 2026-10-12; remaining: 4 (deep Doze), 9, 11, 12, 13
 - [ ] Reliability checklist on the Xiaomi 13, twice, on separate days
 - [ ] Signed APK as GitHub Release v1.0
 

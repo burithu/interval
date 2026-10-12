@@ -3,6 +3,10 @@
 Every version is also a [GitHub release](https://github.com/burithu/interval/releases).
 Versions before 1.0.0 are pre-releases built during development; 1.0.0 is the first stable release (milestone M7).
 
+## 0.13.1 — Time-zone fix
+- Fix: after a time-zone change, a restart-timer reminder could be booked outside its active hours (for example 01:01 for a 09:00–18:00 reminder). It now rings one interval from the change, or at the next window.
+- Reliability checklist added (docs/CHECKLIST.md) with the first emulator run.
+
 ## 0.13.0 — Every Android phone, accessibility, backup
 - Setup now recognises Samsung, OnePlus/Oppo/Realme, Vivo/iQOO, Huawei/Honor and Asus phones, with their own autostart and sleeping-apps steps and a link to a step-by-step guide for each.
 - TalkBack: switches read their label and state, options read as selected or not, day boxes read full day names, Home switches say which reminder they control.

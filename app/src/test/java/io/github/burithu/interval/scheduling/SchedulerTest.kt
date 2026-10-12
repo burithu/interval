@@ -202,6 +202,14 @@ class SchedulerTest {
     @Test fun `reschedule - restart with nothing stored schedules fresh`() =
         assertEquals(at("2026-10-08T15:30"), next(standUp, Rescheduled(at("2026-10-08T14:30"), storedNext = null)))
 
+    @Test fun `reschedule - restart drops a stored ring that a time-zone change moved outside the window`() {
+        // Booked for 09:01 Tokyo time; the phone moves to London, where that is 01:01.
+        val tokyo = ZoneId.of("Asia/Tokyo")
+        val stored = LocalDateTime.parse("2026-10-09T09:01").atZone(tokyo).toInstant()
+        val now = at("2026-10-08T11:40")
+        assertEquals(at("2026-10-08T12:40"), next(standUp, Rescheduled(now, storedNext = stored)))
+    }
+
     @Test fun `reschedule - fixed recomputes the grid in the new time zone`() {
         val tokyo = ZoneId.of("Asia/Tokyo")
         val now = LocalDateTime.parse("2026-10-08T13:18").atZone(tokyo).toInstant()

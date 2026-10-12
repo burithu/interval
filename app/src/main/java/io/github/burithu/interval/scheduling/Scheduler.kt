@@ -66,8 +66,10 @@ object Scheduler {
     private fun compute(r: Reminder, event: ScheduleEvent, zone: ZoneId): Instant? = when (r.timingMode) {
         TimingMode.RESTART -> when (event) {
             is ScheduleEvent.Snoozed -> event.at + r.snooze
+            // A stored ring is kept only if it is still inside a window: after a time-zone change
+            // it can land at, say, 01:00 local for a 09:00–18:00 reminder.
             is ScheduleEvent.Rescheduled ->
-                event.storedNext?.takeIf { it > event.at } ?: r.restartFrom(event.at, zone)
+                event.storedNext?.takeIf { it > event.at && r.isInWindow(it, zone) } ?: r.restartFrom(event.at, zone)
             else -> r.restartFrom(event.at, zone)
         }
         TimingMode.FIXED -> when (event) {
@@ -98,6 +100,9 @@ object Scheduler {
         }
         return null
     }
+
+    private fun Reminder.isInWindow(t: Instant, zone: ZoneId): Boolean =
+        windowsFrom(t, zone, mergeTouching = true).any { t >= it.start && t <= it.end }
 
     /** If the interval is longer than the window, ring once at window start, as in fixed mode. */
     private fun Reminder.firstRestartRing(w: Window): Instant =
