@@ -16,7 +16,9 @@ import androidx.compose.runtime.Composable
 import androidx.compose.runtime.CompositionLocalProvider
 import androidx.compose.runtime.ReadOnlyComposable
 import androidx.compose.foundation.shape.RoundedCornerShape
+import androidx.compose.ui.platform.LocalDensity
 import androidx.compose.ui.text.TextStyle
+import androidx.compose.ui.unit.Density
 import androidx.compose.ui.unit.dp
 
 /** Spacing steps on the 4dp grid (SPEC §4). */
@@ -67,6 +69,16 @@ private val Square = RoundedCornerShape(0.dp)
 private val SquareShapes = Shapes(
     extraSmall = Square, small = Square, medium = Square, large = Square, extraLarge = Square,
 )
+
+/**
+ * Caps the system font scale for display-size text (countdown, alarm clock, headlines), which
+ * is already large and would otherwise wrap or clip at 200%. Body text still scales fully.
+ */
+@Composable
+fun CappedFontScale(max: Float = 1.3f, content: @Composable () -> Unit) {
+    val d = LocalDensity.current
+    CompositionLocalProvider(LocalDensity provides Density(d.density, d.fontScale.coerceAtMost(max)), content = content)
+}
 
 object IntervalTheme {
     val colors: IntervalColors

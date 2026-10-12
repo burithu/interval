@@ -51,13 +51,16 @@ Done when: a reminder created on the Xiaomi 13 rings, dismiss restarts it, and i
 - [x] Event log viewer
 
 ### M7 — Hardening & v1.0
-- [ ] Full Xiaomi checklist, twice, on separate days
-- [ ] Accessibility: TalkBack labels, large fonts, 48dp targets
-- [ ] Auto Backup config; recompute on restore
+Interval is for every Android phone (D36). The Xiaomi 13 is the only physical test device.
+- [x] Accessibility: TalkBack labels, large fonts, 48dp targets
+- [x] Auto Backup config; recompute on restore
+- [x] Reliability setup for other makers: Samsung, OnePlus/Oppo/Realme, Vivo/iQOO, Honor/Huawei, Asus, Motorola, stock; dontkillmyapp.com link as fallback
+- [ ] Reliability checklist on a stock-Android emulator (Pixel image)
+- [ ] Reliability checklist on the Xiaomi 13, twice, on separate days
 - [ ] Signed APK as GitHub Release v1.0
 
 ## Testing
-Unit (scheduling, largest suite) → DAO → a few Compose UI tests → manual Xiaomi checklist with event-log evidence. CI runs unit tests on every push.
+Unit (scheduling, largest suite) → DAO → a few Compose UI tests → manual reliability checklist with event-log evidence, on the Xiaomi 13 and a stock emulator. Other makers' vendor screens are not device-tested; every vendor intent falls back to standard Android settings. CI runs unit tests on every push.
 
 ## Deploying to the phone
 - Development: USB debugging from Android Studio.
@@ -65,4 +68,4 @@ Unit (scheduling, largest suite) → DAO → a few Compose UI tests → manual X
 - Personal releases: signed APK on GitHub Releases.
 
 ## Later
-Play Store release · daily dismissed/missed count · QS tile · widget · export/import · other phone makers in the reliability screen.
+Play Store release · daily dismissed/missed count · QS tile · widget · export/import.

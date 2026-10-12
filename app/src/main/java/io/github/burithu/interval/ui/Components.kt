@@ -13,8 +13,12 @@ import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.heightIn
 import androidx.compose.foundation.layout.navigationBarsPadding
 import androidx.compose.foundation.layout.padding
+import androidx.compose.foundation.selection.selectable
+import androidx.compose.foundation.selection.selectableGroup
+import androidx.compose.foundation.selection.toggleable
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material3.AlertDialog
+import androidx.compose.material3.Switch
 import androidx.compose.material3.Text
 import androidx.compose.material3.TextButton
 import androidx.compose.material3.minimumInteractiveComponentSize
@@ -73,7 +77,7 @@ fun FieldLabel(text: String) =
 @Composable
 fun <T> Segmented(options: List<Pair<T, String>>, selected: T, onSelect: (T) -> Unit) {
     val c = IntervalTheme.colors
-    Row(Modifier.fillMaxWidth().border(Strokes.control, c.fg)) {
+    Row(Modifier.fillMaxWidth().border(Strokes.control, c.fg).selectableGroup()) {
         options.forEach { (value, label) ->
             val on = value == selected
             Box(
@@ -81,7 +85,7 @@ fun <T> Segmented(options: List<Pair<T, String>>, selected: T, onSelect: (T) -> 
                     .weight(1f)
                     .heightIn(min = Sizes.control)
                     .background(if (on) c.fg else c.bg)
-                    .clickable(role = Role.RadioButton) { onSelect(value) },
+                    .selectable(selected = on, role = Role.RadioButton) { onSelect(value) },
                 contentAlignment = Alignment.Center,
             ) {
                 Text(label, style = IntervalTheme.type.reminderName, color = if (on) c.bg else c.muted, textAlign = TextAlign.Center)
@@ -94,7 +98,7 @@ fun <T> Segmented(options: List<Pair<T, String>>, selected: T, onSelect: (T) -> 
 @Composable
 fun <T> PillRow(options: List<Pair<T, String>>, isSelected: (T) -> Boolean, onSelect: (T) -> Unit) {
     val c = IntervalTheme.colors
-    FlowRow(horizontalArrangement = Arrangement.spacedBy(Spacing.s)) {
+    FlowRow(Modifier.selectableGroup(), horizontalArrangement = Arrangement.spacedBy(Spacing.s)) {
         options.forEach { (value, label) ->
             val on = isSelected(value)
             Box(
@@ -103,7 +107,7 @@ fun <T> PillRow(options: List<Pair<T, String>>, isSelected: (T) -> Boolean, onSe
                     .heightIn(min = Sizes.controlSmall)
                     .background(if (on) c.accent else c.bg, RoundedCornerShape(50))
                     .border(Strokes.control, if (on) c.accent else c.fg, RoundedCornerShape(50))
-                    .clickable(role = Role.RadioButton) { onSelect(value) }
+                    .selectable(selected = on, role = Role.RadioButton) { onSelect(value) }
                     .padding(horizontal = Spacing.l),
                 contentAlignment = Alignment.Center,
             ) {
@@ -147,6 +151,27 @@ fun ListRow(
         horizontalArrangement = Arrangement.spacedBy(Spacing.m),
         content = content,
     )
+}
+
+/**
+ * Label, optional sub-text and a switch. The whole row is one toggle, so TalkBack reads the
+ * label with the on/off state instead of a bare switch.
+ */
+@Composable
+fun SwitchRow(label: String, sub: String?, checked: Boolean, onChange: (Boolean) -> Unit) {
+    val c = IntervalTheme.colors
+    val t = IntervalTheme.type
+    ListRow(
+        twoLine = sub != null,
+        onClick = null,
+        modifier = Modifier.toggleable(value = checked, role = Role.Switch, onValueChange = onChange),
+    ) {
+        Column(Modifier.weight(1f), verticalArrangement = Arrangement.spacedBy(Spacing.xxs)) {
+            Text(label, style = t.body, color = c.fg)
+            if (sub != null) Text(sub, style = t.meta, color = c.muted)
+        }
+        Switch(checked = checked, onCheckedChange = null)
+    }
 }
 
 /** Label, optional sub-text, cobalt value. Tapping opens a picker (SettingRow in SPEC §4). */

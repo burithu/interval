@@ -209,23 +209,26 @@ class RingService : Service() {
             .setUsage(usage)
             .setContentType(AudioAttributes.CONTENT_TYPE_SONIFICATION)
             .build()
-        val uri = soundUri?.toUri()
-            ?: RingtoneManager.getDefaultUri(if (alarm) RingtoneManager.TYPE_ALARM else RingtoneManager.TYPE_NOTIFICATION)
+        val fallback = RingtoneManager.getDefaultUri(if (alarm) RingtoneManager.TYPE_ALARM else RingtoneManager.TYPE_NOTIFICATION)
             ?: Settings.System.DEFAULT_RINGTONE_URI
         focus = AudioFocusRequest.Builder(
             if (alarm) AudioManager.AUDIOFOCUS_GAIN_TRANSIENT else AudioManager.AUDIOFOCUS_GAIN_TRANSIENT_MAY_DUCK,
         ).setAudioAttributes(attrs).build().also { audio.requestAudioFocus(it) }
-        player = try {
-            MediaPlayer().apply {
-                setAudioAttributes(attrs)
-                setDataSource(this@RingService, uri)
-                isLooping = alarm
-                setOnPreparedListener { it.start() }
-                if (!alarm) setOnCompletionListener { finish(id, missed = false) }
-                prepareAsync()
+        // A chosen sound can be missing (deleted, or restored from another phone): use the default.
+        player = listOfNotNull(soundUri?.toUri(), fallback).firstNotNullOfOrNull { uri ->
+            val p = MediaPlayer()
+            try {
+                p.setAudioAttributes(attrs)
+                p.setDataSource(this@RingService, uri)
+                p.isLooping = alarm
+                p.setOnPreparedListener { it.start() }
+                if (!alarm) p.setOnCompletionListener { finish(id, missed = false) }
+                p.prepareAsync()
+                p
+            } catch (_: Exception) {
+                p.release()
+                null // Unplayable. Try the next; vibration still runs if none plays.
             }
-        } catch (_: Exception) {
-            null // Unplayable sound file. Vibration still runs.
         }
     }
 

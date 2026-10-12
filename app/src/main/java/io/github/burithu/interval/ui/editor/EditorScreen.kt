@@ -31,7 +31,7 @@ import androidx.compose.material3.AlertDialog
 import androidx.compose.material3.ExperimentalMaterial3Api
 import androidx.compose.material3.HorizontalDivider
 import androidx.compose.material3.OutlinedTextField
-import androidx.compose.material3.Switch
+import androidx.compose.foundation.selection.toggleable
 import androidx.compose.material3.Text
 import androidx.compose.material3.TextButton
 import androidx.compose.material3.TimePicker
@@ -46,7 +46,10 @@ import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.graphics.SolidColor
 import androidx.compose.ui.platform.LocalContext
+import androidx.compose.ui.platform.LocalLocale
 import androidx.compose.ui.semantics.Role
+import androidx.compose.ui.semantics.clearAndSetSemantics
+import androidx.compose.ui.semantics.contentDescription
 import androidx.compose.ui.text.input.KeyboardCapitalization
 import androidx.compose.ui.text.input.KeyboardType
 import androidx.core.net.toUri
@@ -64,8 +67,8 @@ import io.github.burithu.interval.ui.FieldLabel
 import io.github.burithu.interval.ui.ChoiceDialog
 import io.github.burithu.interval.ui.Glyph
 import io.github.burithu.interval.ui.GlyphIcon
-import io.github.burithu.interval.ui.ListRow
 import io.github.burithu.interval.ui.PillRow
+import io.github.burithu.interval.ui.SwitchRow
 import io.github.burithu.interval.ui.TopBar
 import io.github.burithu.interval.ui.SettingRow
 import io.github.burithu.interval.ui.Segmented
@@ -77,6 +80,7 @@ import io.github.burithu.interval.ui.theme.Strokes
 import kotlinx.coroutines.launch
 import java.time.DayOfWeek
 import java.time.Instant
+import java.time.format.TextStyle
 
 class EditorViewModel(private val c: AppContainer, handle: SavedStateHandle) : ViewModel() {
     val id: Long = handle.get<Long>("id") ?: 0L
@@ -228,11 +232,14 @@ fun EditorScreen(vm: EditorViewModel, onClose: () -> Unit) {
                     DayOfWeek.entries.forEach { d ->
                         val on = d in vm.days
                         // At least 48dp tall: on narrow phones the boxes can't be 48dp wide as well.
+                        // TalkBack reads the full day name; "T" and "S" each stand for two days.
+                        val dayName = d.getDisplayName(TextStyle.FULL, LocalLocale.current.platformLocale)
                         Box(
                             Modifier.weight(1f).heightIn(min = Spacing.minTouch)
                                 .background(if (on) c.accent else c.bg)
                                 .border(Strokes.control, if (on) c.accent else c.fg)
-                                .clickable(role = Role.Checkbox) { vm.toggleDay(d) },
+                                .toggleable(value = on, role = Role.Checkbox) { vm.toggleDay(d) }
+                                .clearAndSetSemantics { contentDescription = dayName },
                             contentAlignment = Alignment.Center,
                         ) { Text(d.name.take(1), style = t.reminderName, color = if (on) c.onAccent else c.fg) }
                     }
@@ -299,20 +306,14 @@ fun EditorScreen(vm: EditorViewModel, onClose: () -> Unit) {
                 }
                 if (!alarm) {
                     HorizontalDivider(color = c.line)
-                    ListRow(twoLine = false, onClick = { vm.vibrate = !vm.vibrate }, role = Role.Switch) {
-                        Text("Vibrate", style = t.body, color = c.fg, modifier = Modifier.weight(1f))
-                        Switch(checked = vm.vibrate, onCheckedChange = { vm.vibrate = it })
-                    }
+                    SwitchRow("Vibrate", null, vm.vibrate) { vm.vibrate = it }
                 }
                 if (vm.vibrates) {
                     HorizontalDivider(color = c.line)
-                    ListRow(twoLine = true, onClick = { vm.vibrateOnSilent = !vm.vibrateOnSilent }, role = Role.Switch) {
-                        Column(Modifier.weight(1f)) {
-                            Text("Vibrate on silent", style = t.body, color = c.fg)
-                            Text("Still vibrates when the phone is on silent. Never makes a sound.", style = t.meta, color = c.muted)
-                        }
-                        Switch(checked = vm.vibrateOnSilent, onCheckedChange = { vm.vibrateOnSilent = it })
-                    }
+                    SwitchRow(
+                        "Vibrate on silent", "Still vibrates when the phone is on silent. Never makes a sound.",
+                        vm.vibrateOnSilent,
+                    ) { vm.vibrateOnSilent = it }
                 }
             }
             if (!vm.isNew) {

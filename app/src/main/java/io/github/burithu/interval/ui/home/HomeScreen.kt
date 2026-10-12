@@ -8,6 +8,7 @@ import androidx.compose.animation.fadeIn
 import androidx.compose.animation.fadeOut
 import androidx.compose.foundation.background
 import androidx.compose.foundation.clickable
+import androidx.compose.foundation.selection.toggleable
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
@@ -35,6 +36,7 @@ import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.semantics.Role
+import androidx.compose.ui.semantics.clearAndSetSemantics
 import androidx.compose.ui.semantics.contentDescription
 import androidx.compose.ui.semantics.semantics
 import androidx.compose.ui.text.AnnotatedString
@@ -65,6 +67,7 @@ import io.github.burithu.interval.ui.formatNext
 import io.github.burithu.interval.ui.formatWindow
 import io.github.burithu.interval.ui.formatDays
 import io.github.burithu.interval.ui.reminderMeta
+import io.github.burithu.interval.ui.theme.CappedFontScale
 import io.github.burithu.interval.ui.theme.IntervalTheme
 import io.github.burithu.interval.ui.theme.Sizes
 import io.github.burithu.interval.ui.theme.Spacing
@@ -150,10 +153,13 @@ fun HomeScreen(vm: HomeViewModel, onOpen: (Long) -> Unit, onAdd: () -> Unit, onS
             contentPadding = androidx.compose.foundation.layout.PaddingValues(horizontal = Spacing.screen, vertical = Spacing.s),
         ) {
             item(key = "header") {
-                Row(Modifier.fillMaxWidth().heightIn(min = Sizes.rowSingle), verticalAlignment = Alignment.CenterVertically) {
-                    Text("REMINDERS", style = t.screenTitle, color = c.fg, modifier = Modifier.weight(1f))
-                    if (rows.isNotEmpty()) PauseChip(paused = pausedUntil != null) { showPause = true }
-                    IconButton(Glyph.GEAR, "Settings", onSettings)
+                // Title, chip and gear share one line; capped so large fonts can't split "REMINDERS".
+                CappedFontScale {
+                    Row(Modifier.fillMaxWidth().heightIn(min = Sizes.rowSingle), verticalAlignment = Alignment.CenterVertically) {
+                        Text("REMINDERS", style = t.screenTitle, color = c.fg, modifier = Modifier.weight(1f), softWrap = false)
+                        if (rows.isNotEmpty()) PauseChip(paused = pausedUntil != null) { showPause = true }
+                        IconButton(Glyph.GEAR, "Settings", onSettings)
+                    }
                 }
             }
             item(key = "banner") { ReliabilityBanner(settings.confirmedSteps, onSetup) }
@@ -250,12 +256,14 @@ private fun CountdownHero(rows: List<HomeRow>, now: Instant, zone: ZoneId) {
             },
             label = "countdown",
         ) { text ->
-            Text(
-                text,
-                style = t.countdown,
-                color = if (showMuted) c.muted else c.accent,
-                modifier = Modifier.semantics { contentDescription = "$label: ${text.text}" },
-            )
+            CappedFontScale {
+                Text(
+                    text,
+                    style = t.countdown,
+                    color = if (showMuted) c.muted else c.accent,
+                    modifier = Modifier.semantics { contentDescription = "$label: ${text.text}" },
+                )
+            }
         }
         Text(name, style = t.title, color = c.fg)
         Spacer(Modifier.height(Spacing.xs))
@@ -301,13 +309,17 @@ private fun ReminderRow(row: HomeRow, now: Instant, zone: ZoneId, paused: Boolea
         else -> "—"
     }
     ListRow(twoLine = true, onClick = onClick) {
-        // The meta line wraps rather than cutting off the schedule.
+        // The meta line wraps rather than cutting off the schedule: two lines normally, more at large font sizes.
         Column(Modifier.weight(1f), verticalArrangement = Arrangement.spacedBy(Spacing.xxs)) {
             Text(r.label, style = t.reminderName, color = if (r.enabled) c.fg else c.muted, maxLines = 1, overflow = TextOverflow.Ellipsis)
-            Text(reminderMeta(r), style = t.meta, color = c.muted, maxLines = 2, overflow = TextOverflow.Ellipsis)
+            Text(reminderMeta(r), style = t.meta, color = c.muted)
         }
         Text(next, style = t.nextIn, color = if (r.enabled && !paused) c.accent else c.muted)
-        Switch(checked = r.enabled, onCheckedChange = onToggle)
+        // Named so TalkBack says which reminder the switch turns on or off.
+        Box(
+            Modifier.toggleable(value = r.enabled, role = Role.Switch, onValueChange = onToggle)
+                .clearAndSetSemantics { contentDescription = r.label },
+        ) { Switch(checked = r.enabled, onCheckedChange = null) }
     }
 }
 
@@ -318,10 +330,7 @@ private fun StarterRow(r: Reminder, onAdd: () -> Unit) {
     ListRow(twoLine = true, onClick = null) {
         Column(Modifier.weight(1f), verticalArrangement = Arrangement.spacedBy(Spacing.xxs)) {
             Text(r.label, style = t.reminderName, color = c.fg)
-            Text(
-                "Every ${formatInterval(r.intervalMinutes)} · ${formatWindow(r.windowStart, r.windowEnd)} · ${formatDays(r.days)}",
-                style = t.meta, color = c.muted, maxLines = 2, overflow = TextOverflow.Ellipsis,
-            )
+            Text(reminderMeta(r, withTiming = false), style = t.meta, color = c.muted)
         }
         SmallButton("+ Add", onAdd)
     }

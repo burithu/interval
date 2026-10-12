@@ -32,6 +32,7 @@ import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.semantics.Role
+import androidx.compose.ui.text.style.TextOverflow
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import io.github.burithu.interval.AppContainer
 import io.github.burithu.interval.IntervalApp
@@ -39,6 +40,7 @@ import io.github.burithu.interval.data.ThemeMode
 import io.github.burithu.interval.scheduling.RingAction
 import io.github.burithu.interval.ui.formatClock
 import io.github.burithu.interval.ui.formatInterval
+import io.github.burithu.interval.ui.theme.CappedFontScale
 import io.github.burithu.interval.ui.theme.IntervalTheme
 import io.github.burithu.interval.ui.theme.Sizes
 import io.github.burithu.interval.ui.theme.Spacing
@@ -135,7 +137,8 @@ private fun AlarmScreen(container: AppContainer, id: Long, onDone: () -> Unit) {
         onDone()
     }
 
-    Column(
+    // The alarm screen doesn't scroll, so its text scales only so far: Dismiss must stay on screen.
+    CappedFontScale { Column(
         Modifier.fillMaxSize().background(c.bg).safeDrawingPadding().padding(horizontal = Spacing.screen, vertical = Spacing.xl),
         verticalArrangement = Arrangement.SpaceBetween,
     ) {
@@ -144,7 +147,7 @@ private fun AlarmScreen(container: AppContainer, id: Long, onDone: () -> Unit) {
             Text(formatClock(now, zone), style = t.time, color = c.fg)
         }
         Column(verticalArrangement = Arrangement.spacedBy(Spacing.m)) {
-            Text(r.label.uppercase(), style = t.alarmLabel, color = c.fg)
+            Text(r.label.uppercase(), style = t.alarmLabel, color = c.fg, maxLines = 3, overflow = TextOverflow.Ellipsis)
             Text("Every ${formatInterval(r.intervalMinutes)}", style = t.body, color = c.muted)
             Box(Modifier.fillMaxWidth().height(Strokes.progress).background(c.track)) {
                 Box(Modifier.fillMaxWidth(left.toFloat() / total).height(Strokes.progress).background(c.accent))
@@ -164,5 +167,5 @@ private fun AlarmScreen(container: AppContainer, id: Long, onDone: () -> Unit) {
                 contentAlignment = Alignment.Center,
             ) { Text("SNOOZE ${formatInterval(r.snoozeMinutes).uppercase()}", style = t.sheetTitle, color = c.fg) }
         }
-    }
+    } }
 }

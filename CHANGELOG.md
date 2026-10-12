@@ -3,6 +3,13 @@
 Every version is also a [GitHub release](https://github.com/burithu/interval/releases).
 Versions before 1.0.0 are pre-releases built during development; 1.0.0 is the first stable release (milestone M7).
 
+## 0.13.0 — Every Android phone, accessibility, backup
+- Setup now recognises Samsung, OnePlus/Oppo/Realme, Vivo/iQOO, Huawei/Honor and Asus phones, with their own autostart and sleeping-apps steps and a link to a step-by-step guide for each.
+- TalkBack: switches read their label and state, options read as selected or not, day boxes read full day names, Home switches say which reminder they control.
+- Large system fonts: the countdown, alarm screen and welcome headline stay on screen; setup scrolls as one page.
+- Restoring from a backup on a new phone keeps reminders and settings, works out fresh ring times, and runs setup again.
+- A custom sound that's missing falls back to the default instead of staying silent.
+
 ## 0.12.0 — App icon
 - Final app icon: the timer arc, sized down so it sits clear of the icon's edges on every launcher shape.
 

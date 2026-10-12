@@ -22,7 +22,7 @@ Status: approved, 2026-10-11. Decisions are numbered D1–D30 and listed at the 
 - Light/dark theme follows the phone.
 - Survives reboot, time-zone and daylight-saving changes.
 - Android Auto Backup.
-- Onboarding: permissions + Xiaomi reliability setup.
+- Onboarding: permissions + reliability setup for the phone's maker (D36).
 - Hidden debug event log (last 200 events).
 
 **Later**
@@ -30,13 +30,12 @@ Status: approved, 2026-10-11. Decisions are numbered D1–D30 and listed at the 
 - Quick Settings "Pause all" tile; home-screen countdown widget.
 - Export / import.
 - Play Store release (listing, policy declarations, privacy policy, icon artwork).
-- Reliability guides for other phone makers.
 
 **Not doing**
 - iOS; accounts, cloud sync or any backend; full history/streaks/charts; custom vibration patterns.
 
 ### Platform & constraints
-- Android only. Kotlin + Jetpack Compose. Min SDK 26, target latest stable.
+- Android only, every maker (D36). Kotlin + Jetpack Compose. Min SDK 26, target latest stable.
 - All data on device. No servers. Cost $0 now; $25 Play fee later.
 - Personal GitHub project first, built to Play Store standards.
 - Primary test device: Xiaomi 13 (HyperOS).
@@ -57,7 +56,7 @@ System: Notification (Dismiss · Snooze) · Alarm screen (over lock screen)
 |---|---|---|
 | 01 | Welcome | One button |
 | 02 | Permissions | Notifications, exact alarms, full-screen alarms; only those the Android version needs; skippable |
-| 03 | Reliability setup | Xiaomi: Autostart, Battery "No restrictions", lock in recents; ✓ rechecked on return; skippable |
+| 03 | Reliability setup | Battery unrestricted on every phone, plus the maker's own steps (Xiaomi: Autostart, lock screen, pop-ups; Samsung: Never sleeping apps; others: auto-launch) and a dontkillmyapp.com guide; ✓ rechecked on return; skippable |
 | 04 | Home: empty | Starters: Water 45 min, Stand 1 h, Stretch 2 h — one tap each |
 | 05 | Home | Countdown hero (soonest ring across all reminders), list sorted by next ring, off at bottom |
 | 06 | Home: paused | "Paused until 15:00 · Resume" |
@@ -259,3 +258,6 @@ Onboarding (M3) on Xiaomi must cover: Autostart, Battery "No restrictions", noti
 | D33 | Alarm type per reminder: Screen only / Vibrate / Full alarm (default Full). Alarms no longer ring through silent: silent shows the screen only, vibrate mode drops the sound (overrides "rings through silent mode") |
 | D34 | "Vibrate on silent" switch per reminder (notification and alarm), default off. Silent-mode vibration uses the alarm vibration usage, since Android drops notification vibration on silent |
 | D35 | App icon: white three-quarter arc on accent blue (option A1: radius 18, stroke 7 in the 108dp canvas), clear of the mask edges. Status-bar icon stays the same arc. Chosen over Big I, Rhythm, Dial, Brackets, Progress |
+| D36 | Interval targets every Android phone; Xiaomi 13 is the test device. Reliability setup detects the maker (Xiaomi, Samsung, OnePlus/Oppo/Realme, Vivo/iQOO, Huawei/Honor, Asus, other) and adds its autostart / sleeping-apps step plus a dontkillmyapp.com guide. Non-Xiaomi vendor pages are untested component names with standard-settings fallbacks |
+| D37 | Backup restore: a BackupAgent (Auto Backup, fullBackupOnly) marks a restore; next start recomputes every ring from now, drops an expired pause, and re-runs setup (permissions and confirmed steps are per phone). A missing custom sound falls back to the default |
+| D38 | Accessibility: switch rows are single toggles; segmented controls and pills are radio groups; day boxes read full day names; display-size text (countdown, alarm screen, welcome headline) caps font scale at 130% |

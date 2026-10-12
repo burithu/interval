@@ -42,15 +42,56 @@ data class SetupStep(
 )
 
 /**
+ * Phone makers whose battery managers stop background apps beyond standard Android (D36).
+ * [guide] is the maker's page on dontkillmyapp.com. Only Xiaomi is device-tested; the others'
+ * settings pages are best-known component names, each falling back to standard settings.
+ */
+enum class Maker(val label: String?, val brands: List<String>, val guide: String?, val intro: String) {
+    XIAOMI(
+        "Xiaomi", listOf("xiaomi", "redmi", "poco"), "xiaomi",
+        "Xiaomi phones stop background apps to save battery and hide alarms from new apps. These settings keep Interval working.",
+    ),
+    SAMSUNG(
+        "Samsung", listOf("samsung"), "samsung",
+        "Samsung phones put unused apps to sleep, which stops their reminders. These settings keep Interval awake.",
+    ),
+    OPPO(
+        "OnePlus / Oppo / Realme", listOf("oneplus", "oppo", "realme"), "oneplus",
+        "This phone stops background apps that aren't allowed to auto-launch. These settings keep Interval working.",
+    ),
+    VIVO(
+        "Vivo", listOf("vivo", "iqoo"), "vivo",
+        "Vivo phones stop background apps to save battery. These settings keep Interval working.",
+    ),
+    HUAWEI(
+        "Huawei / Honor", listOf("huawei", "honor"), "huawei",
+        "This phone closes apps it manages automatically. These settings keep Interval working.",
+    ),
+    ASUS(
+        "Asus", listOf("asus"), "asus",
+        "Asus phones block apps from starting in the background. These settings keep Interval working.",
+    ),
+    OTHER(null, emptyList(), null, "Some phones delay background apps to save battery."),
+    ;
+
+    val guideUrl: String? get() = guide?.let { "https://dontkillmyapp.com/$it" }
+
+    companion object {
+        fun detect(manufacturer: String, brand: String): Maker = entries.firstOrNull { m ->
+            m.brands.any { it.equals(manufacturer, true) || it.equals(brand, true) }
+        } ?: OTHER
+    }
+}
+
+/**
  * Everything Interval needs from the phone (SPEC §7, HyperOS findings). Each step reports
  * whether it is done and how to fix it, with fallbacks when a vendor settings page is missing.
  */
 object SetupChecks {
 
-    val isXiaomi: Boolean
-        get() = listOf(Build.MANUFACTURER, Build.BRAND).any {
-            it.equals("xiaomi", true) || it.equals("redmi", true) || it.equals("poco", true)
-        }
+    val maker: Maker by lazy { Maker.detect(Build.MANUFACTURER, Build.BRAND) }
+
+    val isXiaomi: Boolean get() = maker == Maker.XIAOMI
 
     fun permissionSteps(context: Context): List<SetupStep> = buildList {
         if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.TIRAMISU) {
@@ -105,8 +146,13 @@ object SetupChecks {
         val details = appDetails(context)
         val battery = SetupStep(
             id = "battery", title = "Battery saver",
-            reason = if (isXiaomi) "Set to \"No restrictions\" so HyperOS doesn't stop reminders."
-            else "Let Interval run unrestricted so reminders aren't delayed.",
+            reason = when (maker) {
+                Maker.XIAOMI -> "Set to \"No restrictions\" so HyperOS doesn't stop reminders."
+                Maker.SAMSUNG -> "Set battery to \"Unrestricted\" so reminders aren't delayed."
+                Maker.OPPO -> "Allow background activity and turn off battery optimisation for Interval."
+                Maker.VIVO -> "Allow high background power use for Interval."
+                else -> "Let Interval run unrestricted so reminders aren't delayed."
+            },
             status = done(context.getSystemService(PowerManager::class.java).isIgnoringBatteryOptimizations(pkg)),
             action = StepAction.OpenSettings(
                 listOfNotNull(
@@ -118,8 +164,90 @@ object SetupChecks {
             ),
             actionLabel = "Open",
         )
-        if (!isXiaomi) return listOf(battery)
+        val recents = SetupStep(
+            id = "recents_lock", title = "Lock in recent apps",
+            reason = "Optional. Stops \"clear all\" in recent apps from closing Interval.",
+            status = if ("recents_lock" in confirmed) StepStatus.DONE else StepStatus.UNKNOWN,
+            action = StepAction.Instructions(
+                "Open recent apps, then long-press Interval's card (or tap its menu) and choose Lock or Keep open.",
+            ),
+            actionLabel = "How",
+            required = false,
+        )
 
+        // Vendor pages the phone can't report on: the user opens them and marks the step done.
+        fun manual(id: String, title: String, reason: String, vararg components: Pair<String, String>) = SetupStep(
+            id = id, title = title, reason = reason,
+            status = if (id in confirmed) StepStatus.DONE else StepStatus.UNKNOWN,
+            action = StepAction.OpenSettings(components.map { (p, c) -> Intent().setClassName(p, c) } + details),
+            actionLabel = "Open",
+        )
+
+        return when (maker) {
+            Maker.XIAOMI -> xiaomiSteps(context, confirmed, battery)
+            Maker.SAMSUNG -> listOf(
+                battery,
+                manual(
+                    "never_sleeping", "Never sleeping apps",
+                    "Battery → Background usage limits → Never sleeping apps → add Interval. Make sure it isn't under Sleeping or Deep sleeping apps.",
+                    "com.samsung.android.lool" to "com.samsung.android.sm.battery.ui.BatteryActivity",
+                    "com.samsung.android.lool" to "com.samsung.android.sm.ui.battery.BatteryActivity",
+                    "com.samsung.android.sm" to "com.samsung.android.sm.ui.battery.BatteryActivity",
+                ),
+                recents,
+            )
+            Maker.OPPO -> listOf(
+                manual(
+                    "autostart", "Auto launch",
+                    "Turn on Auto launch for Interval so it restores reminders after a reboot.",
+                    "com.coloros.safecenter" to "com.coloros.safecenter.startupapp.StartupAppListActivity",
+                    "com.coloros.safecenter" to "com.coloros.safecenter.permission.startup.StartupAppListActivity",
+                    "com.oplus.battery" to "com.oplus.startupapp.view.StartupAppListActivity",
+                    "com.oppo.safe" to "com.oppo.safe.permission.startup.StartupAppListActivity",
+                    "com.oneplus.security" to "com.oneplus.security.chainlaunch.view.ChainLaunchAppListActivity",
+                ),
+                battery,
+                recents,
+            )
+            Maker.VIVO -> listOf(
+                manual(
+                    "autostart", "Autostart",
+                    "Allow Interval to start in the background so it restores reminders after a reboot.",
+                    "com.vivo.permissionmanager" to "com.vivo.permissionmanager.activity.BgStartUpManagerActivity",
+                    "com.iqoo.secure" to "com.iqoo.secure.ui.phoneoptimize.BgStartUpManager",
+                    "com.iqoo.secure" to "com.iqoo.secure.ui.phoneoptimize.AddWhiteListActivity",
+                ),
+                battery,
+                recents,
+            )
+            Maker.HUAWEI -> listOf(
+                manual(
+                    "autostart", "App launch",
+                    "Turn off \"Manage automatically\" for Interval, then keep Auto-launch, Secondary launch and Run in background on.",
+                    "com.huawei.systemmanager" to "com.huawei.systemmanager.startupmgr.ui.StartupNormalAppListActivity",
+                    "com.huawei.systemmanager" to "com.huawei.systemmanager.optimize.process.ProtectActivity",
+                    "com.hihonor.systemmanager" to "com.hihonor.systemmanager.startupmgr.ui.StartupNormalAppListActivity",
+                ),
+                battery,
+                recents,
+            )
+            Maker.ASUS -> listOf(
+                manual(
+                    "autostart", "Auto-start",
+                    "Allow Interval in Auto-start Manager so it restores reminders after a reboot.",
+                    "com.asus.mobilemanager" to "com.asus.mobilemanager.autostart.AutoStartActivity",
+                    "com.asus.mobilemanager" to "com.asus.mobilemanager.entry.FunctionActivity",
+                ),
+                battery,
+                recents,
+            )
+            Maker.OTHER -> listOf(battery)
+        }
+    }
+
+    private fun xiaomiSteps(context: Context, confirmed: Set<String>, battery: SetupStep): List<SetupStep> {
+        val pkg = context.packageName
+        val details = appDetails(context)
         val lockAndPopups = listOf(miuiOp(context, OP_SHOW_WHEN_LOCKED), miuiOp(context, OP_BACKGROUND_START))
         return listOf(
             SetupStep(

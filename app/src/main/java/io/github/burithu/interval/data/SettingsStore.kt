@@ -70,4 +70,10 @@ class SettingsStore(context: Context) {
     suspend fun setMissedTimeout(minutes: Int) = store.edit { it[Keys.missedTimeout] = minutes }
     suspend fun setDefaultSnooze(minutes: Int) = store.edit { it[Keys.defaultSnooze] = minutes }
     suspend fun setOnboardingDone(done: Boolean) = store.edit { it[Keys.onboardingDone] = done }
+
+    /** After a restore: setup is per phone, so it runs again and hand-confirmed steps are cleared. */
+    suspend fun resetSetup() = store.edit { p ->
+        p[Keys.onboardingDone] = false
+        p.remove(Keys.confirmedSteps)
+    }
 }

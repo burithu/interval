@@ -194,6 +194,24 @@ class ReminderEngine(
     }
 
     /**
+     * First start after a backup restore (D37). Stored ring times and phases came from the old
+     * phone, so every reminder starts fresh from now; an expired pause is dropped. Permissions
+     * and confirmed setup steps belong to the old phone too, so setup runs again.
+     */
+    suspend fun onRestored() = mutex.withLock {
+        val now = clock()
+        val paused = settings.current().pausedUntil?.takeIf { it > now }
+        if (paused == null) settings.setPausedUntil(null)
+        settings.resetSetup()
+        for (r in reminders.getAll().map { it.toDomain() }) {
+            val next = Scheduler.nextRing(r, ScheduleEvent.Enabled(now), zone(), paused)
+            states.upsert(ReminderStateEntity(r.id, Phase.WAITING, next, null))
+            schedule(r, next)
+        }
+        record(null, EventType.RESTORED)
+    }
+
+    /**
      * Called when the app opens. Re-registers stored alarms without changing any times,
      * so it is safe even at the moment a reminder is due.
      */

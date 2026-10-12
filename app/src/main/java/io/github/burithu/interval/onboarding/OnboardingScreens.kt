@@ -1,6 +1,8 @@
 package io.github.burithu.interval.onboarding
 
+import android.content.Intent
 import android.os.Build
+import androidx.core.net.toUri
 import androidx.activity.compose.rememberLauncherForActivityResult
 import androidx.activity.result.contract.ActivityResultContracts
 import androidx.compose.foundation.background
@@ -12,7 +14,7 @@ import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.statusBarsPadding
-import androidx.compose.foundation.layout.width
+import androidx.compose.foundation.layout.widthIn
 import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.items
 import androidx.compose.material3.AlertDialog
@@ -41,6 +43,7 @@ import io.github.burithu.interval.AppContainer
 import io.github.burithu.interval.data.AppSettings
 import io.github.burithu.interval.ui.BottomBar
 import io.github.burithu.interval.ui.SmallButton
+import io.github.burithu.interval.ui.theme.CappedFontScale
 import io.github.burithu.interval.ui.theme.IntervalTheme
 import io.github.burithu.interval.ui.theme.Spacing
 import kotlinx.coroutines.launch
@@ -56,20 +59,22 @@ fun WelcomeScreen(onStart: () -> Unit) {
             verticalArrangement = Arrangement.spacedBy(Spacing.l, Alignment.CenterVertically),
         ) {
             Text("INTERVAL", style = t.sheetTitle, color = c.fg)
-            Text(
-                buildAnnotatedString {
-                    append("Get up.\n")
-                    withStyle(SpanStyle(color = c.accent)) { append("Every") }
-                    append("\nhour.")
-                },
-                style = t.display,
-                color = c.fg,
-            )
+            CappedFontScale {
+                Text(
+                    buildAnnotatedString {
+                        append("Get up.\n")
+                        withStyle(SpanStyle(color = c.accent)) { append("Every") }
+                        append("\nhour.")
+                    },
+                    style = t.display,
+                    color = c.fg,
+                )
+            }
             Text(
                 "Repeating reminders that restart themselves. For water, walks, stretches and food.",
                 style = t.body,
                 color = c.muted,
-                modifier = Modifier.width(300.dp),
+                modifier = Modifier.widthIn(max = 300.dp),
             )
         }
         BottomBar("Get started", onStart)
@@ -114,25 +119,30 @@ fun SetupScreen(container: AppContainer, stage: SetupStage, onNext: () -> Unit, 
 
     Column(Modifier.fillMaxSize().background(c.bg)) {
         Column(Modifier.weight(1f).statusBarsPadding().padding(horizontal = Spacing.screen)) {
-            Column(Modifier.padding(top = Spacing.xl, bottom = Spacing.m), verticalArrangement = Arrangement.spacedBy(Spacing.s)) {
-                val label = when (stage) {
-                    SetupStage.PERMISSIONS -> "Step 1 of 2"
-                    SetupStage.RELIABILITY -> if (SetupChecks.isXiaomi) "Step 2 of 2 · Xiaomi detected" else "Step 2 of 2"
-                }
-                Text(label.uppercase(), style = t.fieldLabel, color = c.muted)
-                Text(
-                    if (stage == SetupStage.PERMISSIONS) "PERMISSIONS" else "MAKE REMINDERS RELIABLE",
-                    style = t.screenTitle, color = c.fg,
-                )
-                if (stage == SetupStage.RELIABILITY) {
-                    Text(
-                        if (SetupChecks.isXiaomi) "Xiaomi phones stop background apps to save battery and hide alarms from new apps. These settings keep Interval working."
-                        else "Some phones delay background apps to save battery.",
-                        style = t.body, color = c.muted,
-                    )
-                }
-            }
+            // The header scrolls with the steps so large fonts can't push the steps off screen.
             LazyColumn(Modifier.weight(1f)) {
+                item(key = "header") {
+                    Column(Modifier.padding(top = Spacing.xl, bottom = Spacing.m), verticalArrangement = Arrangement.spacedBy(Spacing.s)) {
+                        val label = when (stage) {
+                            SetupStage.PERMISSIONS -> "Step 1 of 2"
+                            SetupStage.RELIABILITY -> SetupChecks.maker.label?.let { "Step 2 of 2 · $it detected" } ?: "Step 2 of 2"
+                        }
+                        Text(label.uppercase(), style = t.fieldLabel, color = c.muted)
+                        Text(
+                            if (stage == SetupStage.PERMISSIONS) "PERMISSIONS" else "MAKE REMINDERS RELIABLE",
+                            style = t.screenTitle, color = c.fg,
+                        )
+                        if (stage == SetupStage.RELIABILITY) {
+                            Text(SetupChecks.maker.intro, style = t.body, color = c.muted)
+                            SetupChecks.maker.guideUrl?.let { url ->
+                                // Menus differ between models and versions; this guide has screenshots for each.
+                                SmallButton("Step-by-step guide", {
+                                    SetupChecks.open(context, StepAction.OpenSettings(listOf(Intent(Intent.ACTION_VIEW, url.toUri()))))
+                                })
+                            }
+                        }
+                    }
+                }
                 items(steps.size, key = { steps[it].id }) { i ->
                     StepRow(
                         number = i + 1,
@@ -167,9 +177,9 @@ private fun StepRow(number: Int, step: SetupStep, onAction: () -> Unit, onConfir
     val c = IntervalTheme.colors
     val t = IntervalTheme.type
     Row(Modifier.fillMaxWidth().padding(vertical = Spacing.m), horizontalArrangement = Arrangement.spacedBy(Spacing.m)) {
-        Text("$number", style = t.numeral, color = c.accent, modifier = Modifier.width(Spacing.screen))
+        Text("$number", style = t.numeral, color = c.accent, modifier = Modifier.widthIn(min = Spacing.screen))
         Column(Modifier.weight(1f), verticalArrangement = Arrangement.spacedBy(Spacing.xs)) {
-            Row(verticalAlignment = Alignment.CenterVertically) {
+            Row(verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.spacedBy(Spacing.s)) {
                 Text(step.title, style = t.reminderName, color = c.fg, modifier = Modifier.weight(1f))
                 if (step.status == StepStatus.DONE) {
                     Text("✓ DONE", style = t.fieldLabel, color = c.accent)
