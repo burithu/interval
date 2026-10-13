@@ -3,6 +3,11 @@
 Every version is also a [GitHub release](https://github.com/burithu/interval/releases).
 Versions before 1.0.0 are pre-releases built during development; 1.0.0 is the first stable release (milestone M7).
 
+## 0.14.1 — Emulator checklist complete
+- Reliability checklist on the Android 17 emulator now passes in full: deep Doze, alarm over a PIN lock screen, snooze from the alarm screen and the notification, pause all. Every ring on time (docs/CHECKLIST.md).
+- Debug builds set up the checklist reminders with one command (`seed`).
+- No change to the app itself.
+
 ## 0.14.0 — Rings under Do Not Disturb and Android 17
 - Fix: with Do Not Disturb on, a Full alarm only showed its screen. Android reports DND as silent mode. Alarms now follow Do Not Disturb's own alarm setting, like the Clock app: they ring when DND allows alarms (Android's default) and only show under Total silence.
 - Notifications stay quiet under Do Not Disturb; they vibrate only with Vibrate on silent.

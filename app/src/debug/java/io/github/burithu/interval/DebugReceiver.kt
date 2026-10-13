@@ -23,6 +23,9 @@ import java.time.Instant
  *   replaces every reminder with one test reminder and books its ring 5 s from now through the
  *   real setAlarmClock path.
  * - `clear`: deletes every reminder, which stops any ring.
+ * - `seed [--ez r2 false] [--ei r1Minutes n]`: replaces every reminder with the reliability
+ *   checklist's R1 and R2 (docs/CHECKLIST.md). Without R2 no alarm wakes the screen. Android
+ *   won't enter deep Doze with an alarm clock under 1 h away, so a deep-Doze run needs R1 > 60 min.
  */
 class DebugReceiver : BroadcastReceiver() {
     override fun onReceive(context: Context, intent: Intent) {
@@ -38,6 +41,18 @@ class DebugReceiver : BroadcastReceiver() {
                         Log.i(TAG, "ringer set to ${audio.ringerMode}")
                     }
                     "clear" -> clear(app)
+                    "seed" -> {
+                        // CHECKLIST.md setup: R1 and R2, missed after 2 min.
+                        clear(app)
+                        c.settings.setMissedTimeout(2)
+                        c.settings.setPausedUntil(null)
+                        val base = Reminder(label = "R1", intervalMinutes = intent.getIntExtra("r1Minutes", 1), windowStart = 0, windowEnd = 0, days = Days.EVERY_DAY, createdAt = Instant.now())
+                        val r1 = c.engine.save(base)
+                        val r2 = if (!intent.getBooleanExtra("r2", true)) null else c.engine.save(
+                            base.copy(label = "R2", intervalMinutes = 2, ringStyle = RingStyle.ALARM, alarmMode = AlarmMode.FULL, ringSeconds = 30, snoozeMinutes = 5),
+                        )
+                        Log.i(TAG, "seeded R1=$r1 R2=$r2")
+                    }
                     "ring" -> {
                         clear(app)
                         val r = Reminder(

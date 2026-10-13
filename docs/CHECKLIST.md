@@ -11,6 +11,8 @@ Evidence comes from the event log (Settings → Event log): each ring shows `RAN
 - R2: alarm (Full alarm), every 2 min, otherwise as R1. Ring for 30 s, snooze 5 min.
 - Settings → Missed after: 2 min, so unanswered rings keep the schedule moving (about every 3 min for R1).
 - Keep the time inside the active window for the whole run.
+- Debug builds set all of this up in one step (it replaces every reminder):
+  `adb shell am broadcast -n io.github.burithu.interval.debug/io.github.burithu.interval.DebugReceiver -a seed`
 
 ## Tests
 | # | Test | How | Expect |
@@ -18,7 +20,7 @@ Evidence comes from the event log (Settings → Event log): each ring shows `RAN
 | 1 | Foreground | App open, screen on | R1 rings; Dismiss books the next ring 1 min later |
 | 2 | Background | Home button, wait 3 rings | All on time |
 | 3 | Swiped from recents | Clear Interval from recent apps, wait 3 rings | All on time |
-| 4 | Screen off / Doze | Screen off 30 min or more (emulator: force idle) | All on time; alarms turn the screen on |
+| 4 | Screen off / Doze | Screen off 30 min or more. Emulator: `dumpsys battery unplug`, then `dumpsys deviceidle force-idle`. Android won't enter deep Doze while an alarm clock is under 1 h away (`min_time_to_alarm`), so deep Doze needs R1 > 60 min (`seed --ei r1Minutes 62 --ez r2 false`) | All on time; alarms turn the screen on |
 | 5 | Battery saver | Turn battery saver on, wait 3 rings | All on time |
 | 6 | Restricted app bucket | Emulator: `am set-standby-bucket <pkg> restricted` | All on time |
 | 7 | Reboot | Restart the phone, don't open the app | Rings resume within one interval |
@@ -37,3 +39,4 @@ Evidence comes from the event log (Settings → Event log): each ring shows `RAN
 |---|---|---|---|---|
 | 2026-10-12 | Emulator, Medium Phone | Android 17, stock | Partial: 1, 2, 3, 5, 6, 7, 8, 10 pass | Every ring 0 s late. Test 8 found a bug (restart ring kept outside the window after a time-zone change), fixed in 0.13.1. Test 4: rings with screen off on time, but deep Doze never entered (emulator reports charging; rerun with `dumpsys battery unplug`). Not run: 9, 11, 12, 13, 14 |
 | 2026-10-13 | Emulator, Medium Phone | Android 17, stock | 12, 12b, 12c pass (0.14.0) | Matrix before the fix found two bugs: DND silenced Full alarms (Android reports DND as silent), and Android 17 muted the background notification chime. After: 51 rings, all as specified, including locked screen. On stock Android, silent mode turns on DND, so it behaves as DND |
+| 2026-10-13 | Emulator, Medium Phone | Android 17, stock | 4, 9, 11, 13 pass (0.14.1). Emulator checklist complete except 14 | Every ring 0 s late. 4: screen off 10 min, 4 rings on time; R2 woke the screen to the alarm screen; deep Doze forced at 13:20 with R1 every 62 min, ring at 14:22:47 (deep idle held 50 min, then Android left it ahead of the alarm clock). Deep Doze can't start while a ring is under 1 h away. 9: PIN lock, alarm shown over the keyguard with sound. 11: snooze from the locked alarm screen re-rang after 5 min, from the notification after 10 min. 13: no rings during a 30 min pause; Resume now rang R1 and R2 one interval later |
