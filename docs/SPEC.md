@@ -97,6 +97,8 @@ Mockups: https://claude.ai/artifact/H6wWtw87euJ4r6XuFwT8GR (style options: https
 - Alarm: always the full-screen alarm for the ring length, plus its alarm type: Screen only (nothing else), Vibrate, or Full alarm (sound + vibration).
 - Both follow the ringer mode. Silent → no sound, no vibration (an alarm only shows its screen). Vibrate → no sound.
 - Vibrate on silent (D34), per reminder, off by default, shown only when the ring vibrates: on silent it still vibrates, never sounds.
+- Do Not Disturb (D39): alarms follow DND's own alarm setting, like the Clock app (rings when DND allows alarms, which is Android's default; screen only under Total silence). Notifications count as silent: no sound, vibration only with Vibrate on silent.
+- Android 17+ mutes background sound unless it is an alarm: the notification chime plays on the alarm usage, scaled to the notification volume.
 
 ## 4. Visual design system ("Big Type")
 
@@ -261,3 +263,4 @@ Onboarding (M3) on Xiaomi must cover: Autostart, Battery "No restrictions", noti
 | D36 | Interval targets every Android phone; Xiaomi 13 is the test device. Reliability setup detects the maker (Xiaomi, Samsung, OnePlus/Oppo/Realme, Vivo/iQOO, Huawei/Honor, Asus, other) and adds its autostart / sleeping-apps step plus a dontkillmyapp.com guide. Non-Xiaomi vendor pages are untested component names with standard-settings fallbacks |
 | D37 | Backup restore: a BackupAgent (Auto Backup, fullBackupOnly) marks a restore; next start recomputes every ring from now, drops an expired pause, and re-runs setup (permissions and confirmed steps are per phone). A missing custom sound falls back to the default |
 | D38 | Accessibility: switch rows are single toggles; segmented controls and pills are radio groups; day boxes read full day names; display-size text (countdown, alarm screen, welcome headline) caps font scale at 130% |
+| D39 | Do Not Disturb: Android reports the ringer as silent at every DND level, which silenced Full alarms. Alarms now follow DND's alarm setting (ring when DND allows alarms); notifications treat DND as silent. On Android 17+ the notification chime plays on the alarm usage at the notification volume, since background notification-usage playback is muted (audio hardening) |

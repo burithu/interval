@@ -3,6 +3,12 @@
 Every version is also a [GitHub release](https://github.com/burithu/interval/releases).
 Versions before 1.0.0 are pre-releases built during development; 1.0.0 is the first stable release (milestone M7).
 
+## 0.14.0 — Rings under Do Not Disturb and Android 17
+- Fix: with Do Not Disturb on, a Full alarm only showed its screen. Android reports DND as silent mode. Alarms now follow Do Not Disturb's own alarm setting, like the Clock app: they ring when DND allows alarms (Android's default) and only show under Total silence.
+- Notifications stay quiet under Do Not Disturb; they vibrate only with Vibrate on silent.
+- Fix: on Android 17 the notification chime was muted whenever Interval was in the background. It now plays on the alarm stream at the notification volume.
+- Debug builds can run every ring type under every phone mode from adb (docs/CHECKLIST.md, test 12c).
+
 ## 0.13.1 — Time-zone fix
 - Fix: after a time-zone change, a restart-timer reminder could be booked outside its active hours (for example 01:01 for a 09:00–18:00 reminder). It now rings one interval from the change, or at the next window.
 - Reliability checklist added (docs/CHECKLIST.md) with the first emulator run.

@@ -1,5 +1,6 @@
 package io.github.burithu.interval.ringing
 
+import android.app.NotificationManager
 import android.app.Service
 import android.content.Intent
 import android.content.pm.ServiceInfo
@@ -20,6 +21,7 @@ import android.os.VibrationEffect
 import android.os.Vibrator
 import android.os.VibratorManager
 import android.provider.Settings
+import android.util.Log
 import androidx.core.app.ServiceCompat
 import androidx.core.net.toUri
 import io.github.burithu.interval.IntervalApp
@@ -45,8 +47,7 @@ import java.time.Instant
  * - Notification: one chime and vibration. The notification is then detached so it stays in
  *   the shade, dismissible, after the service stops.
  *
- * Both follow the ringer mode: silent means no sound or vibration (vibration stays if the
- * reminder vibrates on silent), vibrate means no sound.
+ * Both follow the ringer mode and Do Not Disturb; [ringOutput] decides what plays.
  */
 class RingService : Service() {
     private val container get() = (application as IntervalApp).container
@@ -117,14 +118,12 @@ class RingService : Service() {
         playingId = r.id
 
         val alarm = r.ringStyle == RingStyle.ALARM
-        // Both styles follow the ringer mode (D33): silent shows only, vibrate drops the sound.
-        // vibrateOnSilent keeps the vibration on silent (D34). An alarm always shows its screen;
-        // its mode decides what else it does.
-        val mode = audio.ringerMode
-        val silent = mode == AudioManager.RINGER_MODE_SILENT
-        val withSound = mode == AudioManager.RINGER_MODE_NORMAL && (!alarm || r.alarmMode == AlarmMode.FULL)
-        val withVibration = (!silent || r.vibrateOnSilent) && (if (alarm) r.alarmMode != AlarmMode.SCREEN else r.vibrate)
+        // An alarm always shows its screen; the ringer, DND and its alarm type decide the rest.
+        val phone = phoneState()
+        val out = ringOutput(r, phone)
+        val withSound = out.sound
         val maxLength = if (alarm) Duration.ofSeconds(r.ringSeconds.toLong()) else CHIME_MAX
+        Log.i(TAG, "ring ${r.id}: ${r.ringStyle} ${r.alarmMode} $phone -> $out")
 
         val power = getSystemService(PowerManager::class.java)
         wakeLock = power.newWakeLock(PowerManager.PARTIAL_WAKE_LOCK, "interval:ring")
@@ -138,7 +137,7 @@ class RingService : Service() {
             ).acquire(SCREEN_WAKE.toMillis())
         }
         if (withSound) startSound(r.soundUri, alarm, r.id)
-        if (withVibration) vibrate(alarm, bypassSilent = silent)
+        if (out.vibration) vibrate(alarm, out.vibrateAsAlarm)
         if (alarm) openAlarmScreen(r.id)
 
         endJob = scope.launch {
@@ -203,8 +202,16 @@ class RingService : Service() {
         if (missed) container.scope.launch { container.engine.onMissedLabel(id) }
     }
 
+    /**
+     * Android 17 mutes sound from a background app unless it plays on the alarm usage with the
+     * exact-alarm permission. From there the chime plays as an alarm too, turned down to the
+     * notification volume. [ringOutput] already kept it quiet on silent, vibrate and DND.
+     */
     private fun startSound(soundUri: String?, alarm: Boolean, id: Long) {
-        val usage = if (alarm) AudioAttributes.USAGE_ALARM else AudioAttributes.USAGE_NOTIFICATION
+        val chimeAsAlarm = !alarm && Build.VERSION.SDK_INT >= ANDROID_17
+        val usage = if (alarm || chimeAsAlarm) AudioAttributes.USAGE_ALARM else AudioAttributes.USAGE_NOTIFICATION
+        val volume = if (chimeAsAlarm) notificationVolumeOnAlarmStream() else 1f
+        if (volume <= 0f) return
         val attrs = AudioAttributes.Builder()
             .setUsage(usage)
             .setContentType(AudioAttributes.CONTENT_TYPE_SONIFICATION)
@@ -221,11 +228,14 @@ class RingService : Service() {
                 p.setAudioAttributes(attrs)
                 p.setDataSource(this@RingService, uri)
                 p.isLooping = alarm
-                p.setOnPreparedListener { it.start() }
+                p.setVolume(volume, volume)
+                p.setOnPreparedListener { it.start(); Log.i(TAG, "sound started: $uri usage=$usage volume=$volume") }
+                p.setOnErrorListener { _, what, extra -> Log.w(TAG, "sound failed: $uri ($what, $extra)"); false }
                 if (!alarm) p.setOnCompletionListener { finish(id, missed = false) }
                 p.prepareAsync()
                 p
-            } catch (_: Exception) {
+            } catch (e: Exception) {
+                Log.w(TAG, "sound unplayable: $uri", e)
                 p.release()
                 null // Unplayable. Try the next; vibration still runs if none plays.
             }
@@ -234,12 +244,11 @@ class RingService : Service() {
 
     /**
      * Android drops notification-usage vibration on silent, so a ring that vibrates through
-     * silent ([bypassSilent]) uses the alarm usage, which silent mode doesn't block.
+     * silent ([asAlarm]) uses the alarm usage, which silent mode doesn't block.
      */
-    private fun vibrate(alarm: Boolean, bypassSilent: Boolean) {
+    private fun vibrate(alarm: Boolean, asAlarm: Boolean) {
         val effect = if (alarm) VibrationEffect.createWaveform(longArrayOf(0, 800, 600), 0)
         else VibrationEffect.createWaveform(longArrayOf(0, 400, 200, 400), -1)
-        val asAlarm = alarm || bypassSilent
         if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.TIRAMISU) {
             vibrator.vibrate(
                 effect,
@@ -254,6 +263,41 @@ class RingService : Service() {
                     .build(),
             )
         }
+    }
+
+    /**
+     * Player volume that brings the alarm stream down to roughly the notification volume.
+     * Never louder than the alarm stream, which is as high as the player can go.
+     */
+    private fun notificationVolumeOnAlarmStream(): Float {
+        fun level(stream: Int) = audio.getStreamVolume(stream).toFloat() / audio.getStreamMaxVolume(stream).coerceAtLeast(1)
+        val alarmLevel = level(AudioManager.STREAM_ALARM)
+        if (alarmLevel <= 0f) return 0f
+        return (level(AudioManager.STREAM_NOTIFICATION) / alarmLevel).coerceIn(0f, 1f)
+    }
+
+    private fun phoneState(): PhoneState {
+        val nm = getSystemService(NotificationManager::class.java)
+        val filter = nm.currentInterruptionFilter
+        val allowsAlarms = when (filter) {
+            NotificationManager.INTERRUPTION_FILTER_ALARMS -> true
+            NotificationManager.INTERRUPTION_FILTER_PRIORITY -> Build.VERSION.SDK_INT < Build.VERSION_CODES.P ||
+                try {
+                    nm.notificationPolicy.priorityCategories and NotificationManager.Policy.PRIORITY_CATEGORY_ALARMS != 0
+                } catch (_: SecurityException) {
+                    true // Android's default lets alarms through.
+                }
+            else -> false
+        }
+        return PhoneState(
+            ringer = when (audio.ringerMode) {
+                AudioManager.RINGER_MODE_SILENT -> RingerMode.SILENT
+                AudioManager.RINGER_MODE_VIBRATE -> RingerMode.VIBRATE
+                else -> RingerMode.NORMAL
+            },
+            dnd = filter != NotificationManager.INTERRUPTION_FILTER_ALL && filter != NotificationManager.INTERRUPTION_FILTER_UNKNOWN,
+            dndAllowsAlarms = allowsAlarms,
+        )
     }
 
     private fun stopPlayback() {
@@ -281,6 +325,8 @@ class RingService : Service() {
     companion object {
         const val ACTION_START = "io.github.burithu.interval.RING_START"
         const val EXTRA_ID = "reminder_id"
+        private const val TAG = "IntervalRing"
+        private const val ANDROID_17 = 37
         private val CHIME_MAX: Duration = Duration.ofSeconds(10)
         private val VIBRATE_ONLY: Duration = Duration.ofMillis(1500)
         private val SCREEN_WAKE: Duration = Duration.ofSeconds(10)

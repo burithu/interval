@@ -27,6 +27,8 @@ Evidence comes from the event log (Settings → Event log): each ring shows `RAN
 | 10 | Missed | Ignore R2 | Stops after 30 s, notification says Missed, next ring booked |
 | 11 | Snooze | Snooze from notification and alarm screen | Rings again after the snooze length |
 | 12 | Silent mode | Ringer on silent | No sound or vibration; alarm shows its screen; with Vibrate on silent: vibrates only |
+| 12b | Do Not Disturb | DND on (default: alarms allowed), then Total silence | Full alarm rings with sound; notifications silent (vibrate only with Vibrate on silent). Total silence: screen only |
+| 12c | Ring-mode matrix | Debug build: `tools/ring-matrix.sh <log> [serial]` drives every ring type × normal, vibrate, silent, DND levels, locked | Each ring matches SPEC "Ring style and phone mode" |
 | 13 | Pause all | Pause 30 min, then Resume | No rings while paused; Resume restarts from now |
 | 14 | Overnight | Leave R1 off, a 2 h reminder on overnight | Morning log shows no gaps or late rings |
 
@@ -34,3 +36,4 @@ Evidence comes from the event log (Settings → Event log): each ring shows `RAN
 | Date | Device | Android / skin | Result | Notes |
 |---|---|---|---|---|
 | 2026-10-12 | Emulator, Medium Phone | Android 17, stock | Partial: 1, 2, 3, 5, 6, 7, 8, 10 pass | Every ring 0 s late. Test 8 found a bug (restart ring kept outside the window after a time-zone change), fixed in 0.13.1. Test 4: rings with screen off on time, but deep Doze never entered (emulator reports charging; rerun with `dumpsys battery unplug`). Not run: 9, 11, 12, 13, 14 |
+| 2026-10-13 | Emulator, Medium Phone | Android 17, stock | 12, 12b, 12c pass (0.14.0) | Matrix before the fix found two bugs: DND silenced Full alarms (Android reports DND as silent), and Android 17 muted the background notification chime. After: 51 rings, all as specified, including locked screen. On stock Android, silent mode turns on DND, so it behaves as DND |

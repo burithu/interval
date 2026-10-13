@@ -1,0 +1,15 @@
+<?xml version="1.0" encoding="utf-8"?>
+<manifest xmlns:android="http://schemas.android.com/apk/res/android"
+    xmlns:tools="http://schemas.android.com/tools">
+
+    <!-- Lets DebugReceiver set the ringer mode to silent. -->
+    <uses-permission android:name="android.permission.ACCESS_NOTIFICATION_POLICY" />
+
+    <application>
+        <!-- Debug builds only: ring-mode test matrix from adb. -->
+        <receiver
+            android:name=".DebugReceiver"
+            android:exported="true"
+            tools:ignore="ExportedReceiver" />
+    </application>
+</manifest>
