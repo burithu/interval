@@ -3,6 +3,10 @@
 Every version is also a [GitHub release](https://github.com/burithu/interval/releases).
 Versions before 1.0.0 are pre-releases built during development; 1.0.0 is the first stable release (milestone M7).
 
+## 0.14.2 — Handoff on every push
+- Project handoff (`interval_HANDOFF.md`) is now updated with every push.
+- No change to the app itself.
+
 ## 0.14.1 — Emulator checklist complete
 - Reliability checklist on the Android 17 emulator now passes in full: deep Doze, alarm over a PIN lock screen, snooze from the alarm screen and the notification, pause all. Every ring on time (docs/CHECKLIST.md).
 - Debug builds set up the checklist reminders with one command (`seed`).

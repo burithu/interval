@@ -4,8 +4,8 @@ Android app for repeating interval reminders (drink water, stand, stretch) with 
 
 - **Last updated:** 2026-10-15
 - **Branch:** `main` (pushed to github.com/burithu/interval). Working tree clean.
-- **Last commit:** `a0b44e9`, tag `v0.14.1` (emulator checklist complete; includes this handoff and `CLAUDE.md`). Previous: `00b9ed1` (v0.14.0).
-- **Version:** 0.14.1 (versionCode 16). The phone runs 0.14.0; 0.14.1 changes only debug code and docs.
+- **Last commit:** tag `v0.14.2` (handoff-on-push rule). Previous: `bd18bed` (handoff refresh), `a0b44e9` (v0.14.1).
+- **Version:** 0.14.2 (versionCode 17). The phone runs 0.14.0; 0.14.1 and 0.14.2 change only debug code and docs.
 
 ## Resume here
 - **Emulator checklist is done** (step 1, finished 2026-10-13). Two v1.0 steps remain; ask the Pilot before starting either:
@@ -40,7 +40,7 @@ Android app for repeating interval reminders (drink water, stand, stretch) with 
 - Test record: [docs/CHECKLIST.md](docs/CHECKLIST.md), which has a Runs table.
 
 ## Recent changes (newest first)
-- 2026-10-15: none. Status checks only.
+- **v0.14.2** (2026-10-15): `CLAUDE.md` now says to update this handoff before every push; the handoff skill got the same rule. Version bump and CHANGELOG only; the app is unchanged.
 - `a0b44e9` **v0.14.1:** emulator checklist complete.
   - `DebugReceiver.kt` gets the `seed` action, with `--ez r2 false` and `--ei r1Minutes n`.
   - `docs/CHECKLIST.md`: test 4 explains the 1-hour Doze rule; one-line seed setup; run row for 2026-10-13.
@@ -112,7 +112,7 @@ The full table D1–D39 is in [docs/SPEC.md §Decisions](docs/SPEC.md). The ones
 - **Build, test and lint** (PowerShell):
   - Command: `$env:JAVA_HOME='C:\Program Files\Android\Android Studio\jbr'; .\gradlew.bat assembleDebug testDebugUnitTest lintDebug -q`
   - Lint count: `(Select-String -Path app\build\reports\lint-results-debug.sarif -Pattern '"ruleId"').Count`. Expect 0.
-  - Last verified 2026-10-13 at v0.14.1: build OK, all unit tests pass, 0 lint issues. Not re-run 2026-10-15 (no code change).
+  - Last verified 2026-10-15 at v0.14.2: build OK, all unit tests pass, 0 lint issues.
 - **CI:** `.github/workflows` runs unit tests and assembleDebug on every push.
 - **Phone:**
   - Serial `5a3a83ff`, package `io.github.burithu.interval.debug`.
@@ -175,7 +175,7 @@ The full table D1–D39 is in [docs/SPEC.md §Decisions](docs/SPEC.md). The ones
 - **Code style:** match the surrounding Kotlin idiom and comment density. Record new product decisions as `D<n>` in the SPEC table.
 
 ## Session log
-- 2026-10-15: status checks only (`/handoff-progress`, handoff refresh). No code change; the handoff matched git (`a0b44e9`). Waiting on the Pilot to start the Xiaomi checklist.
+- 2026-10-15: status checks (`/handoff-progress`, handoff refresh). Added the rule that every push updates this handoff (skill + `CLAUDE.md`); released v0.14.2 (docs only). Waiting on the Pilot to start the Xiaomi checklist.
 - 2026-10-13: v0.14.0.
   - The Pilot reported "Full alarm doesn't work anymore".
   - Found two bugs: DND reported as silent muted Full alarms, and Android 17 audio hardening muted the background chime.
